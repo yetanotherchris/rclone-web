@@ -192,6 +192,9 @@ function startIdleCountdown() {
 // ---- Screen routing ----
 function showLock() {
   configureLockUI(shortLen);
+  document.getElementById('prefix-input').value = '';
+  document.getElementById('full-input').value = '';
+  document.getElementById('lock-error').classList.add('hidden');
   document.getElementById('lock').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
 }
