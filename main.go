@@ -172,6 +172,9 @@ func runServe() {
 
 	cfg, err := config.Load(*configFlag)
 	if err != nil {
+		if os.IsNotExist(err) {
+			log.Fatalf("please run init (%s not found)", *configFlag)
+		}
 		log.Fatalf("load config %s: %v", *configFlag, err)
 	}
 	if *portFlag != 0 {
