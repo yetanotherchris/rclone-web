@@ -33,6 +33,7 @@ type Server struct {
 	rcCfg       *config.RcloneConfig // nil when locked
 	passphrase  string               // held for re-encryption
 	keyFileMode bool                 // true when started with --key-file (always unlocked, no session required)
+	shortLen    int                  // 0 = full passphrase mode; >0 = short-password prefix length
 
 	bindAddr string
 	port     int
@@ -40,20 +41,23 @@ type Server struct {
 }
 
 // New creates the server. assemblePassphrase takes the browser-supplied prefix
-// and returns the full age passphrase.
+// and returns the full age passphrase. shortLen is 0 for full-passphrase mode,
+// or the number of characters the user types at unlock for short-password mode.
 func New(
 	cfg *config.AppConfig,
 	webFS fs.FS,
 	assemblePassphrase func(prefix string) (string, error),
+	shortLen int,
 ) *Server {
 	s := &Server{
-		cfg:               cfg,
-		webFS:             webFS,
-		src:               &remotes.EnvVarSource{},
-		runs:              runner.NewManager(),
+		cfg:                cfg,
+		webFS:              webFS,
+		src:                &remotes.EnvVarSource{},
+		runs:               runner.NewManager(),
 		assemblePassphrase: assemblePassphrase,
-		bindAddr:          cfg.BindAddr,
-		port:              cfg.Port,
+		bindAddr:           cfg.BindAddr,
+		port:               cfg.Port,
+		shortLen:           shortLen,
 	}
 
 	s.sessions = session.NewStore(
@@ -274,6 +278,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		jsonOK(w, map[string]interface{}{
 			"locked":          false,
 			"idleSecondsLeft": -1,
+			"shortLen":        s.shortLen,
 		})
 		return
 	}
@@ -282,6 +287,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]interface{}{
 		"locked":          !ok,
 		"idleSecondsLeft": int(remaining.Seconds()),
+		"shortLen":        s.shortLen,
 	})
 }
 

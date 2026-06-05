@@ -11,6 +11,7 @@ let pollTimer = null;
 let idleTimer = null;
 let pendingRunJobId = null;
 let pendingRunDryRun = false;
+let shortLen = 0;      // 0 = full-passphrase mode; >0 = short-password prefix length
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', () => {
@@ -88,6 +89,8 @@ async function api(method, path, body) {
 async function checkStatus() {
   try {
     const data = await fetch('/api/status').then(r => r.json());
+    shortLen = data.shortLen || 0;
+    configureLockUI(shortLen);
     if (data.locked) {
       showLock();
     } else {
@@ -98,6 +101,16 @@ async function checkStatus() {
     }
   } catch {
     showLock();
+  }
+}
+
+function configureLockUI(n) {
+  const prefixMode = n > 0;
+  document.getElementById('lock-prefix-mode').classList.toggle('hidden', !prefixMode);
+  document.getElementById('lock-full-mode').classList.toggle('hidden', prefixMode);
+  if (prefixMode) {
+    document.getElementById('prefix-len').textContent = n;
+    document.getElementById('prefix-input').maxLength = n;
   }
 }
 
@@ -178,6 +191,7 @@ function startIdleCountdown() {
 
 // ---- Screen routing ----
 function showLock() {
+  configureLockUI(shortLen);
   document.getElementById('lock').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
 }
