@@ -154,7 +154,7 @@ func (s *Server) hostGuard(next http.Handler) http.Handler {
 }
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
-	// Static files — index.html at "/" plus app.js / app.css at "/assets/*"
+	// Static files — index.html at "/" plus app.generated.js / app.css at "/assets/*"
 	fileServer := http.FileServer(http.FS(s.webFS))
 	mux.HandleFunc("GET /assets/", func(w http.ResponseWriter, r *http.Request) {
 		// Rewrite /assets/foo → /foo so the embedded FS root matches
