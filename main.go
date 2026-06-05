@@ -16,6 +16,7 @@ import (
 	"github.com/yetanotherchris/rclone-web/internal/server"
 )
 
+
 func appConfigDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -24,8 +25,8 @@ func appConfigDir() string {
 	return filepath.Join(home, ".config", "rcloneweb")
 }
 
-func defaultConfigFile() string {
-	return filepath.Join(appConfigDir(), "rcloneweb.yml")
+func defaultAgeConfig() string {
+	return filepath.Join(appConfigDir(), "rcloneweb.yml.age")
 }
 
 func main() {
@@ -42,41 +43,15 @@ func main() {
 
 func runInit(args []string) error {
 	fs := flag.NewFlagSet("init", flag.ExitOnError)
-	configDir := appConfigDir()
-	defaultRcloneConfig := filepath.Join(configDir, "rcloneweb.yml.age")
-	rcloneConfigFlag := fs.String("config-path", defaultRcloneConfig, "Path to age-encrypted rclone config")
+	ageCfgFlag := fs.String("config", defaultAgeConfig(), "Path to age-encrypted config")
 	fs.Parse(args)
 
-	if err := os.MkdirAll(configDir, 0700); err != nil {
-		return fmt.Errorf("create config dir %s: %w", configDir, err)
+	ageCfgPath := *ageCfgFlag
+	if err := os.MkdirAll(filepath.Dir(ageCfgPath), 0700); err != nil {
+		return fmt.Errorf("create config dir: %w", err)
 	}
 
-	cfg := config.DefaultConfig()
-	cfg.ConfigPath = *rcloneConfigFlag
 	sc := bufio.NewScanner(os.Stdin)
-
-	appConfigFile := defaultConfigFile()
-	if _, err := os.Stat(appConfigFile); err == nil {
-		fmt.Printf("Config already exists at %s.\nRunning init will overwrite it. Continue? (y/N): ", appConfigFile)
-		if sc.Scan() {
-			answer := strings.TrimSpace(strings.ToLower(sc.Text()))
-			if answer != "y" && answer != "yes" {
-				return fmt.Errorf("init cancelled")
-			}
-		} else {
-			return fmt.Errorf("init cancelled")
-		}
-	}
-
-	idle := cfg.IdleTimeoutSeconds
-	fmt.Printf("Idle timeout in seconds (min 30) [%d]: ", idle)
-	if sc.Scan() {
-		var n int
-		if cnt, _ := fmt.Sscanf(strings.TrimSpace(sc.Text()), "%d", &n); cnt == 1 && n >= 30 {
-			idle = n
-		}
-	}
-	cfg.IdleTimeoutSeconds = idle
 
 	fmt.Print("Password: ")
 	var passphrase string
@@ -92,19 +67,19 @@ func runInit(args []string) error {
 		return fmt.Errorf("passwords do not match")
 	}
 
-	_, statErr := os.Stat(cfg.ConfigPath)
+	_, statErr := os.Stat(ageCfgPath)
 	if errors.Is(statErr, os.ErrNotExist) {
 		emptyCfg := config.EmptyRcloneConfig()
 		initialYAML, err := config.MarshalConfig(emptyCfg)
 		if err != nil {
 			return fmt.Errorf("marshal initial config: %w", err)
 		}
-		if err := secret.Encrypt(cfg.ConfigPath, passphrase, initialYAML); err != nil {
+		if err := secret.Encrypt(ageCfgPath, passphrase, initialYAML); err != nil {
 			return fmt.Errorf("create encrypted config: %w", err)
 		}
-		fmt.Printf("✓ Created encrypted config at %s\n", cfg.ConfigPath)
+		fmt.Printf("✓ Created encrypted config at %s\n", ageCfgPath)
 	} else {
-		if _, err := secret.Decrypt(cfg.ConfigPath, passphrase); err != nil {
+		if _, err := secret.Decrypt(ageCfgPath, passphrase); err != nil {
 			return fmt.Errorf("passphrase did not decrypt config: %w", err)
 		}
 		fmt.Println("✓ Config decrypted successfully.")
@@ -123,7 +98,7 @@ func runInit(args []string) error {
 			}
 			suffix := passphrase[len(short):]
 			store := creds.New()
-			key := creds.CredKey(cfg.ConfigPath)
+			key := creds.CredKey(ageCfgPath)
 			if err := store.Set(key, suffix); err != nil {
 				return fmt.Errorf("store suffix in credential store: %w", err)
 			}
@@ -131,29 +106,28 @@ func runInit(args []string) error {
 		}
 	}
 
-	if err := cfg.Save(appConfigFile); err != nil {
-		return fmt.Errorf("write %s: %w", appConfigFile, err)
-	}
-	fmt.Printf("✓ Wrote %s\n", appConfigFile)
 	return nil
 }
 
 // ---- serve subcommand ----
 
 func runServe() {
-	portFlag := flag.Int("port", 0, "HTTP port (0 = random free port)")
-	configFlag := flag.String("config", defaultConfigFile(), "Path to rcloneweb.yml")
+	defaults := config.DefaultConfig()
+
+	ageCfgFlag := flag.String("config", defaultAgeConfig(), "Path to age-encrypted config")
+	portFlag := flag.Int("port", defaults.Port, "HTTP port (0 = random free port)")
+	bindFlag := flag.String("bind", defaults.BindAddr, "Bind address")
+	idleFlag := flag.Int("idle-timeout", defaults.IdleTimeoutSeconds, "Idle timeout in seconds (ignored with --key-file)")
+	rcloneFlag := flag.String("rclone", defaults.RclonePath, "Path to rclone binary")
+	keyFileFlag := flag.String("key-file", "", "Path to file containing the passphrase; skips browser unlock and disables idle lock")
 	flag.Parse()
 
-	cfg, err := config.Load(*configFlag)
-	if err != nil {
-		if os.IsNotExist(err) {
-			log.Fatalf("please run init (%s not found)", *configFlag)
-		}
-		log.Fatalf("load config %s: %v", *configFlag, err)
-	}
-	if *portFlag != 0 {
-		cfg.Port = *portFlag
+	cfg := &config.AppConfig{
+		ConfigPath:         *ageCfgFlag,
+		Port:               *portFlag,
+		BindAddr:           *bindFlag,
+		IdleTimeoutSeconds: *idleFlag,
+		RclonePath:         *rcloneFlag,
 	}
 
 	store := creds.New()
@@ -168,6 +142,18 @@ func runServe() {
 	}
 
 	srv := server.New(cfg, webFS(), assemblePassphrase)
+
+	if *keyFileFlag != "" {
+		raw, err := os.ReadFile(*keyFileFlag)
+		if err != nil {
+			log.Fatalf("read key file %s: %v", *keyFileFlag, err)
+		}
+		passphrase := strings.TrimRight(string(raw), "\r\n")
+		if err := srv.AutoUnlock(passphrase); err != nil {
+			log.Fatalf("auto-unlock with key file: %v", err)
+		}
+	}
+
 	addr, err := srv.Start()
 	if err != nil {
 		log.Fatalf("start server: %v", err)
