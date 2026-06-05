@@ -5,8 +5,8 @@ import (
 )
 
 func TestParseConfig(t *testing.T) {
-	yaml := `
-rclone:
+	yml := `
+rclone-web:
   flags: "--fast-list --transfers 8"
   providers:
     b2:
@@ -16,17 +16,14 @@ rclone:
     localdisk:
       type: local
   jobs:
-    - id: j1
-      name: "Photos to B2"
+    - name: "Photos to B2"
+      source: "localdisk:D:/Photos"
+      destination: "b2:my-bucket/photos"
       command: copy
-      source_provider: localdisk
-      source_path: D:/Photos
-      dest_provider: b2
-      dest_path: my-bucket/photos
       extra_args: "--exclude *.tmp"
       enabled: true
 `
-	cfg, err := ParseConfig([]byte(yaml))
+	cfg, err := ParseConfig([]byte(yml))
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -39,7 +36,18 @@ rclone:
 	if len(cfg.Rclone.Jobs) != 1 {
 		t.Errorf("jobs: got %d", len(cfg.Rclone.Jobs))
 	}
-	if cfg.Rclone.Jobs[0].Name != "Photos to B2" {
-		t.Errorf("job name: got %q", cfg.Rclone.Jobs[0].Name)
+	j := cfg.Rclone.Jobs[0]
+	if j.Name != "Photos to B2" {
+		t.Errorf("job name: got %q", j.Name)
+	}
+	if j.Source != "localdisk:D:/Photos" {
+		t.Errorf("source: got %q", j.Source)
+	}
+	if j.Destination != "b2:my-bucket/photos" {
+		t.Errorf("destination: got %q", j.Destination)
+	}
+	// ID should be auto-assigned when absent
+	if j.ID == "" {
+		t.Error("expected auto-assigned ID")
 	}
 }

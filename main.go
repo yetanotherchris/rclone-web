@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/yetanotherchris/rclone-web/internal/config"
@@ -15,7 +16,17 @@ import (
 	"github.com/yetanotherchris/rclone-web/internal/server"
 )
 
-const defaultConfigFile = "rclone-web.json"
+func appConfigDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "."
+	}
+	return filepath.Join(home, ".config", "rcloneweb")
+}
+
+func defaultConfigFile() string {
+	return filepath.Join(appConfigDir(), "rclone-web.yml")
+}
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
@@ -30,7 +41,15 @@ func main() {
 // ---- init subcommand ----
 
 func runInit() error {
+	configDir := appConfigDir()
+	if err := os.MkdirAll(configDir, 0700); err != nil {
+		return fmt.Errorf("create config dir %s: %w", configDir, err)
+	}
+
 	cfg := config.DefaultConfig()
+	if cfg.ConfigPath == "" {
+		cfg.ConfigPath = filepath.Join(configDir, "rclone.conf.age")
+	}
 	sc := bufio.NewScanner(os.Stdin)
 
 	prompt := func(label, def string) string {
@@ -49,10 +68,20 @@ func runInit() error {
 		return v
 	}
 
-	cfg.ConfigPath = prompt("Age-encrypted config path", cfg.ConfigPath)
-	if _, err := os.Stat(cfg.ConfigPath); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("config file not found: %s", cfg.ConfigPath)
+	appConfigFile := defaultConfigFile()
+	if _, err := os.Stat(appConfigFile); err == nil {
+		fmt.Printf("Config already exists at %s.\nRunning init will overwrite it. Continue? (y/N): ", appConfigFile)
+		if sc.Scan() {
+			answer := strings.TrimSpace(strings.ToLower(sc.Text()))
+			if answer != "y" && answer != "yes" {
+				return fmt.Errorf("init cancelled")
+			}
+		} else {
+			return fmt.Errorf("init cancelled")
+		}
 	}
+
+	cfg.ConfigPath = prompt("Age-encrypted rclone config path", cfg.ConfigPath)
 
 	mode := prompt("Password mode (prefix/full)", cfg.PasswordMode)
 	if mode != "prefix" && mode != "full" {
@@ -82,17 +111,37 @@ func runInit() error {
 	}
 	cfg.IdleTimeoutSeconds = idle
 
-	fmt.Print("Full age passphrase (verify decryption): ")
+	fmt.Print("Password: ")
 	var passphrase string
 	if sc.Scan() {
 		passphrase = strings.TrimSpace(sc.Text())
 	}
-
-	// Verify the passphrase decrypts the config.
-	if _, err := secret.Decrypt(cfg.ConfigPath, passphrase); err != nil {
-		return fmt.Errorf("passphrase did not decrypt config: %w", err)
+	fmt.Print("Confirm password: ")
+	var confirm string
+	if sc.Scan() {
+		confirm = strings.TrimSpace(sc.Text())
 	}
-	fmt.Println("✓ Config decrypted successfully.")
+	if passphrase != confirm {
+		return fmt.Errorf("passwords do not match")
+	}
+
+	_, statErr := os.Stat(cfg.ConfigPath)
+	if errors.Is(statErr, os.ErrNotExist) {
+		emptyCfg := config.EmptyRcloneConfig()
+		initialYAML, err := config.MarshalConfig(emptyCfg)
+		if err != nil {
+			return fmt.Errorf("marshal initial config: %w", err)
+		}
+		if err := secret.Encrypt(cfg.ConfigPath, passphrase, initialYAML); err != nil {
+			return fmt.Errorf("create encrypted config: %w", err)
+		}
+		fmt.Printf("✓ Created encrypted config at %s\n", cfg.ConfigPath)
+	} else {
+		if _, err := secret.Decrypt(cfg.ConfigPath, passphrase); err != nil {
+			return fmt.Errorf("passphrase did not decrypt config: %w", err)
+		}
+		fmt.Println("✓ Config decrypted successfully.")
+	}
 
 	if mode == "prefix" {
 		if len(passphrase) <= cfg.PrefixLength {
@@ -107,10 +156,10 @@ func runInit() error {
 		fmt.Println("✓ Suffix saved to credential store.")
 	}
 
-	if err := cfg.Save(defaultConfigFile); err != nil {
-		return fmt.Errorf("write %s: %w", defaultConfigFile, err)
+	if err := cfg.Save(appConfigFile); err != nil {
+		return fmt.Errorf("write %s: %w", appConfigFile, err)
 	}
-	fmt.Printf("✓ Wrote %s\n", defaultConfigFile)
+	fmt.Printf("✓ Wrote %s\n", appConfigFile)
 	return nil
 }
 
@@ -118,7 +167,7 @@ func runInit() error {
 
 func runServe() {
 	portFlag := flag.Int("port", 0, "HTTP port (0 = random free port)")
-	configFlag := flag.String("config", defaultConfigFile, "Path to rclone-web.json")
+	configFlag := flag.String("config", defaultConfigFile(), "Path to rclone-web.yml")
 	flag.Parse()
 
 	cfg, err := config.Load(*configFlag)
