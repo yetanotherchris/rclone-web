@@ -65,7 +65,10 @@
     </aside>
 
     <!-- Main -->
-    <main class="flex-1">
+    <!-- min-width:0 (Tailwind `min-w-0`) lets this flex item shrink below its
+         content width, so wide children like the run-log <pre> scroll inside
+         their own `overflow-auto` box instead of stretching the whole page. -->
+    <main class="flex-1" style="min-width:0">
 
       <!-- DASHBOARD -->
       <section data-screen="dashboard" class="screen hidden p-8">

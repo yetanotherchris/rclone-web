@@ -121,13 +121,17 @@ export function renderProviderFields() {
   const required = options.filter(o => !o.Advanced && !o.Hide);
   const advanced = options.filter(o => o.Advanced && !o.Hide);
 
-  // Google Drive's service-account JSON blob is hidden from rclone's interactive
-  // configurator (Hide=2), so it's filtered out above. Surface it here: pasting
-  // the JSON itself stores the credentials inside the encrypted config, rather
-  // than referencing a plaintext file on disk (service_account_file).
+  // Google Drive: prefer pasting the service-account JSON *blob* (stored inside the
+  // encrypted config) over referencing a plaintext key file on disk. rclone marks
+  // the blob option Hide=2 (so it's filtered out above) and surfaces
+  // service_account_file as a normal field — so swap their prominence: show the
+  // blob up top in the main section, and demote the file-path option to Advanced.
   if (type === 'drive') {
+    const fileIdx = required.findIndex(o => o.Name === 'service_account_file');
+    if (fileIdx !== -1) advanced.unshift(...required.splice(fileIdx, 1));
+
     const blob = options.find(o => o.Name === 'service_account_credentials');
-    if (blob && !advanced.includes(blob)) advanced.unshift(blob);
+    if (blob && !required.includes(blob)) required.unshift(blob);
   }
 
   const fieldsEl = document.getElementById('p-fields');
@@ -158,7 +162,7 @@ function backendFieldHTML(opt, prefix) {
 
   if (isBlob) {
     input = `<textarea id="pf-${esc(key)}" rows="4" placeholder='{ "type": "service_account", "project_id": "...", ... }' class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>`;
-    hint = 'Paste the JSON itself to keep the credentials inside the encrypted config — no plaintext key file left on disk. Or use the "…JSON file path" field instead if you prefer to reference a file.';
+    hint = 'Paste the JSON itself to keep the credentials inside the encrypted config — no plaintext key file left on disk. Prefer a file on disk instead? Use the "Service Account Credentials JSON file path" field under Advanced.';
   } else if (opt.Examples && opt.Examples.length) {
     const opts = opt.Examples.map(ex => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join('');
     input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
