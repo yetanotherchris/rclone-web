@@ -41,6 +41,24 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('f-cmd').addEventListener('change', toggleDestFields);
 
+  // Extra-args help: click a flag to append it to the field
+  document.getElementById('flag-help').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-flag]');
+    if (!btn) return;
+    const input = document.getElementById('f-extra');
+    const cur = input.value.trim();
+    const flag = btn.dataset.flag;
+    input.value = (cur ? cur + ' ' : '') + flag;
+    input.focus();
+    // If the flag carries a {PLACEHOLDER}, select it so the value can be typed over it.
+    const ph = flag.match(/\{[^}]*\}/);
+    if (ph) {
+      const start = input.value.length - flag.length + ph.index;
+      input.setSelectionRange(start, start + ph[0].length);
+    }
+    updateCmdPreview();
+  });
+
   // Save buttons
   document.getElementById('save-job-btn').addEventListener('click', saveJob);
   document.getElementById('save-prov-btn').addEventListener('click', saveProvider);
@@ -324,12 +342,12 @@ function openJobForm(jobId) {
   const job = jobId ? jobs.find(j => j.id === jobId) : null;
   document.getElementById('jobform-title').textContent = job ? 'Edit job' : 'New job';
   document.getElementById('f-id').value = job ? job.id : '';
-  document.getElementById('f-name').value = job ? job.name : '';
+  document.getElementById('f-name').value = job ? (job.name || '') : '';
   document.getElementById('f-cmd').value = job ? job.command : 'copy';
   document.getElementById('f-enabled').checked = job ? job.enabled : true;
-  document.getElementById('f-spath').value = job ? job.source_path : '';
-  document.getElementById('f-dpath').value = job ? job.dest_path : '';
-  document.getElementById('f-extra').value = job ? job.extra_args : '';
+  document.getElementById('f-spath').value = job ? (job.source_path || '') : '';
+  document.getElementById('f-dpath').value = job ? (job.dest_path || '') : '';
+  document.getElementById('f-extra').value = job && job.extra_args && job.extra_args !== 'undefined' ? job.extra_args : '';
   clearError('jobform-error');
 
   // Populate provider dropdowns
