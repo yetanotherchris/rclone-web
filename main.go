@@ -44,7 +44,7 @@ func runInit(args []string) error {
 	fs := flag.NewFlagSet("init", flag.ExitOnError)
 	configDir := appConfigDir()
 	defaultRcloneConfig := filepath.Join(configDir, "rclone.conf.age")
-	rcloneConfigFlag := fs.String("rclone-config", defaultRcloneConfig, "Path to age-encrypted rclone config")
+	rcloneConfigFlag := fs.String("config-path", defaultRcloneConfig, "Path to age-encrypted rclone config")
 	fs.Parse(args)
 
 	if err := os.MkdirAll(configDir, 0700); err != nil {
