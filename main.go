@@ -202,7 +202,10 @@ func runServe() {
 
 	url := fmt.Sprintf("http://%s", addr)
 	fmt.Printf("rclone-web listening on %s\n", url)
-	openBrowser(url)
+	// Key-file mode is for daemon/service (and e2e) use — don't pop a browser.
+	if *keyFileFlag == "" {
+		openBrowser(url)
+	}
 
 	// Block forever.
 	select {}

@@ -138,10 +138,13 @@ func (m *Manager) Start(
 
 	go func() {
 		waitErr := cmd.Wait()
-		cancel()
 		run.mu.Lock()
 		run.FinishedAt = time.Now()
-		if ctx.Err() != nil && run.Status == StatusRunning {
+		// Check ctx.Err() before our own cancel() below, so a normally-finished
+		// run isn't misreported as canceled. ctx is non-nil here only when Stop()
+		// (or another caller) canceled it — in which case the process was killed
+		// and waitErr is non-nil, so this branch must come first to win.
+		if ctx.Err() != nil {
 			run.Status = StatusCanceled
 			run.ExitCode = -1
 		} else if waitErr != nil {
@@ -156,6 +159,7 @@ func (m *Manager) Start(
 			run.ExitCode = 0
 		}
 		run.mu.Unlock()
+		cancel() // release context resources now that status is decided
 		if onDone != nil {
 			onDone(run)
 		}

@@ -41,7 +41,9 @@ rclone-web.json
 
 # E2E test artefacts
 e2e/.server
+e2e/.fixtures
 e2e/.fixture.json
+e2e/.env.local
 e2e/node_modules/
 e2e/test-results/
 e2e/playwright-report/
