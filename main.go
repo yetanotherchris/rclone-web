@@ -25,12 +25,12 @@ func appConfigDir() string {
 }
 
 func defaultConfigFile() string {
-	return filepath.Join(appConfigDir(), "rclone-web.yml")
+	return filepath.Join(appConfigDir(), "rcloneweb.yml")
 }
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
-		if err := runInit(); err != nil {
+		if err := runInit(os.Args[2:]); err != nil {
 			log.Fatalf("init: %v", err)
 		}
 		return
@@ -40,16 +40,19 @@ func main() {
 
 // ---- init subcommand ----
 
-func runInit() error {
+func runInit(args []string) error {
+	fs := flag.NewFlagSet("init", flag.ExitOnError)
 	configDir := appConfigDir()
+	defaultRcloneConfig := filepath.Join(configDir, "rcloneweb.yml.age")
+	rcloneConfigFlag := fs.String("config-path", defaultRcloneConfig, "Path to age-encrypted rclone config")
+	fs.Parse(args)
+
 	if err := os.MkdirAll(configDir, 0700); err != nil {
 		return fmt.Errorf("create config dir %s: %w", configDir, err)
 	}
 
 	cfg := config.DefaultConfig()
-	if cfg.ConfigPath == "" {
-		cfg.ConfigPath = filepath.Join(configDir, "rclone.conf.age")
-	}
+	cfg.ConfigPath = *rcloneConfigFlag
 	sc := bufio.NewScanner(os.Stdin)
 
 	prompt := func(label, def string) string {
@@ -80,8 +83,6 @@ func runInit() error {
 			return fmt.Errorf("init cancelled")
 		}
 	}
-
-	cfg.ConfigPath = prompt("Age-encrypted rclone config path", cfg.ConfigPath)
 
 	mode := prompt("Password mode (prefix/full)", cfg.PasswordMode)
 	if mode != "prefix" && mode != "full" {
@@ -167,11 +168,14 @@ func runInit() error {
 
 func runServe() {
 	portFlag := flag.Int("port", 0, "HTTP port (0 = random free port)")
-	configFlag := flag.String("config", defaultConfigFile(), "Path to rclone-web.yml")
+	configFlag := flag.String("config", defaultConfigFile(), "Path to rcloneweb.yml")
 	flag.Parse()
 
 	cfg, err := config.Load(*configFlag)
 	if err != nil {
+		if os.IsNotExist(err) {
+			log.Fatalf("please run init (%s not found)", *configFlag)
+		}
 		log.Fatalf("load config %s: %v", *configFlag, err)
 	}
 	if *portFlag != 0 {
