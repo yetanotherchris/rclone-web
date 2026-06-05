@@ -43,7 +43,7 @@ func main() {
 func runInit(args []string) error {
 	fs := flag.NewFlagSet("init", flag.ExitOnError)
 	configDir := appConfigDir()
-	defaultRcloneConfig := filepath.Join(configDir, "rcloneweb.yml.enc")
+	defaultRcloneConfig := filepath.Join(configDir, "rcloneweb.yml.age")
 	rcloneConfigFlag := fs.String("config-path", defaultRcloneConfig, "Path to age-encrypted rclone config")
 	fs.Parse(args)
 
