@@ -1,19 +1,20 @@
 package config
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 )
 
 type AppConfig struct {
-	ConfigPath           string `json:"configPath"`
-	PasswordMode         string `json:"passwordMode"`    // "prefix" | "full"
-	PrefixLength         int    `json:"prefixLength"`    // min 3
-	IdleTimeoutSeconds   int    `json:"idleTimeoutSeconds"`
-	BindAddr             string `json:"bindAddr"`
-	Port                 int    `json:"port"`
-	RclonePath           string `json:"rclonePath"`
+	ConfigPath         string `yaml:"config_path"`
+	PasswordMode       string `yaml:"password_mode"`        // "prefix" | "full"
+	PrefixLength       int    `yaml:"prefix_length"`        // min 3
+	IdleTimeoutSeconds int    `yaml:"idle_timeout_seconds"`
+	BindAddr           string `yaml:"bind_addr"`
+	Port               int    `yaml:"port"`
+	RclonePath         string `yaml:"rclone_path"`
 }
 
 func DefaultConfig() *AppConfig {
@@ -34,7 +35,7 @@ func Load(path string) (*AppConfig, error) {
 	}
 	defer f.Close()
 	cfg := DefaultConfig()
-	if err := json.NewDecoder(f).Decode(cfg); err != nil {
+	if err := yaml.NewDecoder(f).Decode(cfg); err != nil {
 		return nil, err
 	}
 	return cfg, nil
@@ -49,9 +50,7 @@ func (c *AppConfig) Save(path string) error {
 		return err
 	}
 	tmp := f.Name()
-	enc := json.NewEncoder(f)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(c); err != nil {
+	if err := yaml.NewEncoder(f).Encode(c); err != nil {
 		f.Close()
 		os.Remove(tmp)
 		return err

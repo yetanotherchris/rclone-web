@@ -25,7 +25,7 @@ func appConfigDir() string {
 }
 
 func defaultConfigFile() string {
-	return filepath.Join(appConfigDir(), "rclone-web.json")
+	return filepath.Join(appConfigDir(), "rclone-web.yml")
 }
 
 func main() {
