@@ -30,7 +30,7 @@ func defaultConfigFile() string {
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
-		if err := runInit(); err != nil {
+		if err := runInit(os.Args[2:]); err != nil {
 			log.Fatalf("init: %v", err)
 		}
 		return
@@ -40,16 +40,19 @@ func main() {
 
 // ---- init subcommand ----
 
-func runInit() error {
+func runInit(args []string) error {
+	fs := flag.NewFlagSet("init", flag.ExitOnError)
 	configDir := appConfigDir()
+	defaultRcloneConfig := filepath.Join(configDir, "rclone.conf.age")
+	rcloneConfigFlag := fs.String("rclone-config", defaultRcloneConfig, "Path to age-encrypted rclone config")
+	fs.Parse(args)
+
 	if err := os.MkdirAll(configDir, 0700); err != nil {
 		return fmt.Errorf("create config dir %s: %w", configDir, err)
 	}
 
 	cfg := config.DefaultConfig()
-	if cfg.ConfigPath == "" {
-		cfg.ConfigPath = filepath.Join(configDir, "rclone.conf.age")
-	}
+	cfg.ConfigPath = *rcloneConfigFlag
 	sc := bufio.NewScanner(os.Stdin)
 
 	prompt := func(label, def string) string {
@@ -80,8 +83,6 @@ func runInit() error {
 			return fmt.Errorf("init cancelled")
 		}
 	}
-
-	cfg.ConfigPath = prompt("Age-encrypted rclone config path", cfg.ConfigPath)
 
 	mode := prompt("Password mode (prefix/full)", cfg.PasswordMode)
 	if mode != "prefix" && mode != "full" {
