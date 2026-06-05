@@ -51,6 +51,7 @@ At unlock time the server concatenates `userInput + storedSuffix` to reconstruct
 
 Passing `--key-file /path/to/file` to the serve command reads the passphrase from that file and auto-unlocks at startup. In this mode:
 - The browser unlock screen is never shown
+- No browser is launched on startup (daemon-friendly; also avoids focus-stealing in e2e)
 - Session cookies and CSRF tokens are not required
 - The idle timeout and lock button have no effect
 
@@ -100,18 +101,60 @@ npm run install-browsers   # first time only — downloads Chromium
 npm test
 ```
 
-The test suite (`e2e/tests/copy-job.spec.ts`) will:
+The harness (`global-setup.ts`) will:
 1. Build the server binary (`e2e/.server`)
-2. Generate a temporary age-encrypted config with a local-to-local copy job
-3. Start the server in `--key-file` mode (no unlock screen)
-4. Run three Playwright tests against it:
-   - Lock screen is hidden (key-file mode bypass)
-   - Dashboard shows the test job
-   - Clicking Run copies files and status shows `success · exit 0`
-5. Kill the server and clean up the temp directory
+2. Generate a temporary age-encrypted config with one local copy job, one job per
+   rclone command, and (if configured) a B2 job
+3. Start the server in `--key-file` mode (no unlock screen, no browser launched)
+4. Run the Playwright tests below against it
+5. Kill the server and clean up the temp directory (`global-teardown.ts`)
+
+#### Tests
+
+By default `npm test` runs the 8 hermetic local tests. The B2 test only runs
+when `e2e/.env.local` is present (see below); otherwise it is skipped.
+
+| Spec file | Test | What it checks |
+|-----------|------|----------------|
+| `copy-job.spec.ts` | unlocked in key-file mode | No lock screen is shown when started with `--key-file` |
+| `copy-job.spec.ts` | dashboard lists the job | The "E2E Copy" job appears on the dashboard |
+| `copy-job.spec.ts` | copy job runs | Running the local copy job reaches `success · exit 0` and the files land in the destination dir |
+| `commands.spec.ts` | copy | Transfers files; the `-v` run log shows `Copied` and the filenames |
+| `commands.spec.ts` | sync | Mirrors source to destination, deleting an extra file in the destination (handles the confirm dialog) |
+| `commands.spec.ts` | move | Moves files into the destination and leaves the source empty (handles the confirm dialog) |
+| `commands.spec.ts` | check | Exits `0` when source and destination already match |
+| `commands.spec.ts` | lsf | One-sided listing; the run log shows the source filenames |
+| `b2-copy-job.spec.ts` *(opt-in)* | B2 copy | Copies a folder to another folder in one B2 bucket and verifies the destination listing |
 
 Run with a visible browser for debugging:
 
 ```bash
 npm run test:headed
 ```
+
+### Optional B2 bucket copy test
+
+`e2e/tests/b2-copy-job.spec.ts` exercises a real Backblaze B2 copy (folder →
+folder within one bucket). It is **opt-in** and **skipped** unless credentials
+are present, so the default `npm test` stays hermetic (local-only).
+
+To enable it, copy `e2e/.env.local.example` to `e2e/.env.local` (gitignored) and
+fill in a B2 application key plus a throwaway bucket (`RCLONEWEB_` is just a
+namespace prefix — it stands for rclone-web):
+
+```
+RCLONEWEB_E2E_B2_ACCOUNT=<b2 keyID>
+RCLONEWEB_E2E_B2_KEY=<b2 applicationKey>
+RCLONEWEB_E2E_B2_SRC_BUCKET=rclone-web-e2e-tests
+RCLONEWEB_E2E_B2_DST_BUCKET=rclone-web-e2e-tests
+# RCLONEWEB_E2E_B2_PREFIX is optional and defaults to "e2e"
+```
+
+Source and destination use the same bucket but distinct sub-paths
+(`<bucket>/<prefix>/src` and `<bucket>/<prefix>/dst`), so set both bucket vars to
+the same name. When `.env.local` is present, global-setup adds a `b2` provider +
+"E2E B2 Copy" job to the generated config, **purges** both sub-paths, and
+**seeds** the src path with the fixture files. The spec runs the job via the UI,
+asserts `success · exit 0`, then verifies the dst path lists the copied files.
+Global-teardown purges both sub-paths afterward. The test only ever touches the
+`<bucket>/<prefix>/{src,dst}` paths.
