@@ -68,6 +68,19 @@ func runInit() error {
 		return v
 	}
 
+	appConfigFile := defaultConfigFile()
+	if _, err := os.Stat(appConfigFile); err == nil {
+		fmt.Printf("Config already exists at %s.\nRunning init will overwrite it. Continue? (y/N): ", appConfigFile)
+		if sc.Scan() {
+			answer := strings.TrimSpace(strings.ToLower(sc.Text()))
+			if answer != "y" && answer != "yes" {
+				return fmt.Errorf("init cancelled")
+			}
+		} else {
+			return fmt.Errorf("init cancelled")
+		}
+	}
+
 	cfg.ConfigPath = prompt("Age-encrypted rclone config path", cfg.ConfigPath)
 
 	mode := prompt("Password mode (prefix/full)", cfg.PasswordMode)
@@ -114,7 +127,12 @@ func runInit() error {
 
 	_, statErr := os.Stat(cfg.ConfigPath)
 	if errors.Is(statErr, os.ErrNotExist) {
-		if err := secret.Encrypt(cfg.ConfigPath, passphrase, []byte{}); err != nil {
+		emptyCfg := config.EmptyRcloneConfig()
+		initialYAML, err := config.MarshalConfig(emptyCfg)
+		if err != nil {
+			return fmt.Errorf("marshal initial config: %w", err)
+		}
+		if err := secret.Encrypt(cfg.ConfigPath, passphrase, initialYAML); err != nil {
 			return fmt.Errorf("create encrypted config: %w", err)
 		}
 		fmt.Printf("✓ Created encrypted config at %s\n", cfg.ConfigPath)
@@ -138,7 +156,6 @@ func runInit() error {
 		fmt.Println("✓ Suffix saved to credential store.")
 	}
 
-	appConfigFile := defaultConfigFile()
 	if err := cfg.Save(appConfigFile); err != nil {
 		return fmt.Errorf("write %s: %w", appConfigFile, err)
 	}

@@ -33,14 +33,12 @@ func TestAssembleArgv(t *testing.T) {
 		"b2":        {Type: "b2"},
 	}
 	job := &config.Job{
-		ID:             "j1",
-		Name:           "Test",
-		Command:        "copy",
-		SourceProvider: "localdisk",
-		SourcePath:     "D:/Photos",
-		DestProvider:   "b2",
-		DestPath:       "my-bucket/photos",
-		ExtraArgs:      "--exclude *.tmp",
+		ID:          "j1",
+		Name:        "Test",
+		Command:     "copy",
+		Source:      "D:/Photos",
+		Destination: "b2:my-bucket/photos",
+		ExtraArgs:   "--exclude *.tmp",
 	}
 
 	argv, err := AssembleArgv(src, cfg, job, false)
@@ -59,18 +57,29 @@ func TestAssembleArgv(t *testing.T) {
 	}
 }
 
+func TestAssembleArgv_defaultsToSync(t *testing.T) {
+	src := &EnvVarSource{}
+	cfg := &config.RcloneConfig{}
+	job := &config.Job{
+		Source:      "gdrive:2026",
+		Destination: "b2:myuser-drive/2026",
+	}
+	argv, err := AssembleArgv(src, cfg, job, false)
+	if err != nil {
+		t.Fatalf("AssembleArgv: %v", err)
+	}
+	if argv[0] != "sync" {
+		t.Errorf("default command: got %q, want sync", argv[0])
+	}
+}
+
 func TestAssembleArgv_dryRun(t *testing.T) {
 	src := &EnvVarSource{}
 	cfg := &config.RcloneConfig{}
-	cfg.Rclone.Providers = map[string]config.Provider{
-		"b2": {Type: "b2"},
-	}
 	job := &config.Job{
-		Command:        "copy",
-		SourceProvider: "b2",
-		SourcePath:     "bucket/src",
-		DestProvider:   "b2",
-		DestPath:       "bucket/dst",
+		Command:     "copy",
+		Source:      "b2:bucket/src",
+		Destination: "b2:bucket/dst",
 	}
 	argv, err := AssembleArgv(src, cfg, job, true)
 	if err != nil {
@@ -85,13 +94,9 @@ func TestAssembleArgv_dryRun(t *testing.T) {
 func TestAssembleArgv_oneSided(t *testing.T) {
 	src := &EnvVarSource{}
 	cfg := &config.RcloneConfig{}
-	cfg.Rclone.Providers = map[string]config.Provider{
-		"b2": {Type: "b2"},
-	}
 	job := &config.Job{
-		Command:        "lsf",
-		SourceProvider: "b2",
-		SourcePath:     "my-bucket",
+		Command: "lsf",
+		Source:  "b2:my-bucket",
 	}
 	argv, err := AssembleArgv(src, cfg, job, false)
 	if err != nil {

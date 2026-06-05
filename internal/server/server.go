@@ -412,7 +412,7 @@ func (s *Server) handleRunJob(w http.ResponseWriter, r *http.Request) {
 		argv,
 		cmdline,
 		job.ID,
-		job.Name,
+		job.DisplayName(),
 		extraEnv,
 		os.Environ(),
 		func(r *runner.Run) {

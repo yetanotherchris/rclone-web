@@ -34,49 +34,39 @@ func (e *EnvVarSource) Remote(p config.Provider, name, path string) string {
 }
 
 // AssembleArgv builds the full rclone argument list for a job run (not a shell
-// string — each token is a discrete argv element).
+// string — each token is a discrete argv element). Job.Source and Job.Destination
+// are full rclone remote paths (e.g. "gdrive:2026", "b2:bucket/path", or a local
+// path like "D:/Photos"). Command defaults to "sync" when not set.
 func AssembleArgv(
 	src *EnvVarSource,
 	cfg *config.RcloneConfig,
 	job *config.Job,
 	dryRun bool,
 ) ([]string, error) {
-	if job.Command == "" {
-		return nil, fmt.Errorf("job %q has no command", job.Name)
+	if job.Source == "" {
+		return nil, fmt.Errorf("job %q has no source", job.DisplayName())
 	}
 
-	argv := []string{job.Command}
-
-	// Source side
-	srcProv, ok := cfg.Rclone.Providers[job.SourceProvider]
-	if !ok && job.SourceProvider != "" {
-		return nil, fmt.Errorf("source provider %q not found", job.SourceProvider)
+	cmd := job.Command
+	if cmd == "" {
+		cmd = "sync"
 	}
-	argv = append(argv, src.Remote(srcProv, job.SourceProvider, job.SourcePath))
 
-	// Destination side (omitted for one-sided verbs)
-	if !IsOneSided(job.Command) {
-		if job.DestProvider != "" {
-			dstProv, ok := cfg.Rclone.Providers[job.DestProvider]
-			if !ok {
-				return nil, fmt.Errorf("destination provider %q not found", job.DestProvider)
-			}
-			argv = append(argv, src.Remote(dstProv, job.DestProvider, job.DestPath))
-		} else {
-			argv = append(argv, job.DestPath)
+	argv := []string{cmd, job.Source}
+
+	if !IsOneSided(cmd) {
+		if job.Destination == "" {
+			return nil, fmt.Errorf("job %q has no destination", job.DisplayName())
 		}
+		argv = append(argv, job.Destination)
 	}
 
-	// Global flags
 	if cfg.Rclone.Flags != "" {
 		argv = append(argv, strings.Fields(cfg.Rclone.Flags)...)
 	}
-
-	// Per-job extra args
 	if job.ExtraArgs != "" {
 		argv = append(argv, strings.Fields(job.ExtraArgs)...)
 	}
-
 	if dryRun {
 		argv = append(argv, "--dry-run")
 	}
