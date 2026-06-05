@@ -45,7 +45,7 @@ This is intended for daemon/service use where the server should start ready with
 | `--port` | 0 (random) | HTTP port |
 | `--bind` | `127.0.0.1` | Bind address |
 | `--idle-timeout` | 300 | Idle timeout in seconds |
-| `--rclone` | `rclone` | Path to rclone binary |
+| `--rclone-path` | `rclone` | Path to rclone binary (default assumes rclone is on $PATH) |
 | `--key-file` | *(none)* | Path to file containing passphrase (enables key-file mode) |
 
 ## Key packages

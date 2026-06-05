@@ -118,7 +118,7 @@ func runServe() {
 	portFlag := flag.Int("port", defaults.Port, "HTTP port (0 = random free port)")
 	bindFlag := flag.String("bind", defaults.BindAddr, "Bind address")
 	idleFlag := flag.Int("idle-timeout", defaults.IdleTimeoutSeconds, "Idle timeout in seconds (ignored with --key-file)")
-	rcloneFlag := flag.String("rclone", defaults.RclonePath, "Path to rclone binary")
+	rcloneFlag := flag.String("rclone-path", defaults.RclonePath, "Path to rclone binary (default assumes rclone is on $PATH)")
 	keyFileFlag := flag.String("key-file", "", "Path to file containing the passphrase; skips browser unlock and disables idle lock")
 	flag.Parse()
 
