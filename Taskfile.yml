@@ -1,0 +1,59 @@
+version: '3'
+
+vars:
+  TAILWIND_VERSION: "3.4.17"
+  TAILWIND_BIN: ".tools/tailwindcss"
+
+tasks:
+  install-tailwind:
+    desc: Download standalone Tailwind CLI
+    cmds:
+      - mkdir -p .tools
+      - |
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m)
+        case "$ARCH" in
+          x86_64) ARCH="x64" ;;
+          aarch64|arm64) ARCH="arm64" ;;
+        esac
+        curl -sL "https://github.com/tailwindlabs/tailwindcss/releases/download/v{{.TAILWIND_VERSION}}/tailwindcss-${OS}-${ARCH}" -o {{.TAILWIND_BIN}}
+        chmod +x {{.TAILWIND_BIN}}
+
+  css:
+    desc: Compile Tailwind CSS
+    cmds:
+      - "{{.TAILWIND_BIN}} -i web/tailwind.input.css -o web/app.css --minify"
+    sources:
+      - web/**/*.html
+      - web/**/*.js
+      - web/tailwind.input.css
+    generates:
+      - web/app.css
+
+  build:
+    desc: Build the binary (css first)
+    deps: [css]
+    cmds:
+      - go build -ldflags="-s -w" -o rclone-web .
+
+  dev:
+    desc: Dev mode — watch CSS + run go
+    cmds:
+      - |
+        {{.TAILWIND_BIN}} -i web/tailwind.input.css -o web/app.css --watch &
+        go run . -port 9090
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test ./...
+
+  release:
+    desc: Build release binaries for all platforms
+    cmds:
+      - mkdir -p dist
+      - GOOS=linux   GOARCH=amd64   go build -ldflags="-s -w" -o dist/rclone-web-linux-amd64 .
+      - GOOS=linux   GOARCH=arm64   go build -ldflags="-s -w" -o dist/rclone-web-linux-arm64 .
+      - GOOS=darwin  GOARCH=amd64   go build -ldflags="-s -w" -o dist/rclone-web-darwin-amd64 .
+      - GOOS=darwin  GOARCH=arm64   go build -ldflags="-s -w" -o dist/rclone-web-darwin-arm64 .
+      - GOOS=windows GOARCH=amd64   go build -ldflags="-s -w" -o dist/rclone-web-windows-amd64.exe .
