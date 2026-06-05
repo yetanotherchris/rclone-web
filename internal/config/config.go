@@ -9,8 +9,6 @@ import (
 
 type AppConfig struct {
 	ConfigPath         string `yaml:"config_path"`
-	PasswordMode       string `yaml:"password_mode"`        // "prefix" | "full"
-	PrefixLength       int    `yaml:"prefix_length"`        // min 3
 	IdleTimeoutSeconds int    `yaml:"idle_timeout_seconds"`
 	BindAddr           string `yaml:"bind_addr"`
 	Port               int    `yaml:"port"`
@@ -19,8 +17,6 @@ type AppConfig struct {
 
 func DefaultConfig() *AppConfig {
 	return &AppConfig{
-		PasswordMode:       "prefix",
-		PrefixLength:       4,
 		IdleTimeoutSeconds: 300,
 		BindAddr:           "127.0.0.1",
 		Port:               0,
