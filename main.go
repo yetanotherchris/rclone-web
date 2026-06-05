@@ -25,7 +25,7 @@ func appConfigDir() string {
 }
 
 func defaultConfigFile() string {
-	return filepath.Join(appConfigDir(), "rclone-web.yml")
+	return filepath.Join(appConfigDir(), "rcloneweb.yml")
 }
 
 func main() {
@@ -43,7 +43,7 @@ func main() {
 func runInit(args []string) error {
 	fs := flag.NewFlagSet("init", flag.ExitOnError)
 	configDir := appConfigDir()
-	defaultRcloneConfig := filepath.Join(configDir, "rclone.conf.age")
+	defaultRcloneConfig := filepath.Join(configDir, "rcloneweb.yml.enc")
 	rcloneConfigFlag := fs.String("config-path", defaultRcloneConfig, "Path to age-encrypted rclone config")
 	fs.Parse(args)
 
@@ -168,7 +168,7 @@ func runInit(args []string) error {
 
 func runServe() {
 	portFlag := flag.Int("port", 0, "HTTP port (0 = random free port)")
-	configFlag := flag.String("config", defaultConfigFile(), "Path to rclone-web.yml")
+	configFlag := flag.String("config", defaultConfigFile(), "Path to rcloneweb.yml")
 	flag.Parse()
 
 	cfg, err := config.Load(*configFlag)
