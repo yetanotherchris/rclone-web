@@ -29,9 +29,10 @@ type Server struct {
 	src        *remotes.EnvVarSource
 	assemblePassphrase func(prefix string) (string, error)
 
-	mu         sync.RWMutex
-	rcCfg      *config.RcloneConfig   // nil when locked
-	passphrase string                  // held for re-encryption
+	mu          sync.RWMutex
+	rcCfg       *config.RcloneConfig // nil when locked
+	passphrase  string               // held for re-encryption
+	keyFileMode bool                 // true when started with --key-file (always unlocked, no session required)
 
 	bindAddr string
 	port     int
@@ -74,6 +75,26 @@ func (s *Server) lock() {
 	s.rcCfg = nil
 }
 
+// AutoUnlock decrypts the config using the given passphrase and puts the server
+// into key-file mode: always unlocked, no session or CSRF checks required.
+// Must be called before Start.
+func (s *Server) AutoUnlock(passphrase string) error {
+	data, err := secret.Decrypt(s.cfg.ConfigPath, passphrase)
+	if err != nil {
+		return fmt.Errorf("decrypt config: %w", err)
+	}
+	rcCfg, err := config.ParseConfig(data)
+	if err != nil {
+		return fmt.Errorf("parse config: %w", err)
+	}
+	s.mu.Lock()
+	s.rcCfg = rcCfg
+	s.passphrase = passphrase
+	s.keyFileMode = true
+	s.mu.Unlock()
+	return nil
+}
+
 // Start binds the listener and starts serving.
 func (s *Server) Start() (string, error) {
 	addr := fmt.Sprintf("%s:%d", s.bindAddr, s.port)
@@ -82,7 +103,9 @@ func (s *Server) Start() (string, error) {
 		return "", fmt.Errorf("listen %s: %w", addr, err)
 	}
 	s.listener = ln
-	s.sessions.StartIdleWatcher()
+	if !s.keyFileMode {
+		s.sessions.StartIdleWatcher()
+	}
 
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
@@ -166,26 +189,30 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	http.FileServer(http.FS(s.webFS)).ServeHTTP(w, r)
 }
 
-// auth middleware — requires a valid session cookie.
+// auth middleware — requires a valid session cookie (bypassed in key-file mode).
 func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := s.sessions.Validate(r); !ok {
-			jsonErr(w, "unauthorized", http.StatusUnauthorized)
-			return
+		if !s.keyFileMode {
+			if _, ok := s.sessions.Validate(r); !ok {
+				jsonErr(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			s.sessions.Touch()
 		}
-		s.sessions.Touch()
 		next(w, r)
 	}
 }
 
-// csrf middleware — requires a valid session + CSRF token.
+// csrf middleware — requires a valid session + CSRF token (bypassed in key-file mode).
 func (s *Server) csrf(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !s.sessions.ValidateCSRF(r) {
-			jsonErr(w, "unauthorized", http.StatusUnauthorized)
-			return
+		if !s.keyFileMode {
+			if !s.sessions.ValidateCSRF(r) {
+				jsonErr(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			s.sessions.Touch()
 		}
-		s.sessions.Touch()
 		next(w, r)
 	}
 }
@@ -232,6 +259,10 @@ func (s *Server) handleUnlock(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLock(w http.ResponseWriter, r *http.Request) {
+	if s.keyFileMode {
+		jsonOK(w, map[string]string{"status": "locked"})
+		return
+	}
 	s.sessions.Destroy()
 	s.lock()
 	s.sessions.ClearCookie(w)
@@ -239,6 +270,13 @@ func (s *Server) handleLock(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
+	if s.keyFileMode {
+		jsonOK(w, map[string]interface{}{
+			"locked":          false,
+			"idleSecondsLeft": -1,
+		})
+		return
+	}
 	_, ok := s.sessions.Validate(r)
 	remaining := s.sessions.TimeUntilLock()
 	jsonOK(w, map[string]interface{}{
