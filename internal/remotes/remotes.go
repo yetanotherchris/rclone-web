@@ -80,11 +80,45 @@ func AssembleArgv(
 	if job.ExtraArgs != "" {
 		argv = append(argv, strings.Fields(job.ExtraArgs)...)
 	}
+
+	// rclone's transfer commands (copy/sync/move/…) print nothing on success
+	// unless asked to. Inject a default "-v" so every run produces a visible log,
+	// but never override an explicit verbosity choice the user already supplied.
+	if !argvHasVerbosityFlag(argv) {
+		argv = append(argv, "-v")
+	}
+
 	if dryRun {
 		argv = append(argv, "--dry-run")
 	}
 
 	return argv, nil
+}
+
+// argvHasVerbosityFlag reports whether the assembled args already control
+// rclone's log output (verbosity, quiet, progress, stats, or log-level), in
+// which case the default "-v" should not be added.
+func argvHasVerbosityFlag(argv []string) bool {
+	for _, arg := range argv {
+		switch {
+		case arg == "-P",
+			strings.HasPrefix(arg, "--verbose"),
+			strings.HasPrefix(arg, "--quiet"),
+			strings.HasPrefix(arg, "--progress"),
+			strings.HasPrefix(arg, "--stats"),
+			strings.HasPrefix(arg, "--log-level"):
+			return true
+		}
+		// Short flags: a single-dash token like "-v", "-vv", "-q", or a bundle
+		// such as "-Pv" that contains v or q. Long "--" flags are excluded so
+		// "--verbose" isn't matched here (it's handled above).
+		if strings.HasPrefix(arg, "-") && !strings.HasPrefix(arg, "--") {
+			if strings.ContainsAny(arg, "vq") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // IsOneSided reports whether a command takes only a single remote (no destination).

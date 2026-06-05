@@ -47,8 +47,9 @@ func TestAssembleArgv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AssembleArgv: %v", err)
 	}
-	// copy D:/Photos b2:my-bucket/photos --fast-list --transfers 8 --exclude *.tmp
-	want := []string{"copy", "D:/Photos", "b2:my-bucket/photos", "--fast-list", "--transfers", "8", "--exclude", "*.tmp"}
+	// copy D:/Photos b2:my-bucket/photos --fast-list --transfers 8 --exclude *.tmp -v
+	// (-v is injected by default because the job sets no verbosity flag of its own)
+	want := []string{"copy", "D:/Photos", "b2:my-bucket/photos", "--fast-list", "--transfers", "8", "--exclude", "*.tmp", "-v"}
 	if len(argv) != len(want) {
 		t.Fatalf("len mismatch: got %v, want %v", argv, want)
 	}
@@ -119,8 +120,38 @@ func TestAssembleArgv_oneSided(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AssembleArgv: %v", err)
 	}
-	if len(argv) != 2 {
-		t.Errorf("expected 2 args for lsf, got %v", argv)
+	// lsf (one-sided) plus the injected default "-v".
+	want := []string{"lsf", "b2:my-bucket", "-v"}
+	if len(argv) != len(want) {
+		t.Fatalf("expected %v for lsf, got %v", want, argv)
+	}
+	for i, v := range want {
+		if argv[i] != v {
+			t.Errorf("argv[%d]: got %q, want %q", i, argv[i], v)
+		}
+	}
+}
+
+func TestAssembleArgv_respectsExplicitVerbosity(t *testing.T) {
+	src := &EnvVarSource{}
+	cfg := &config.RcloneConfig{}
+	cfg.Rclone.Providers = map[string]config.Provider{"b2": {Type: "b2"}}
+	job := &config.Job{
+		Command:        "copy",
+		SourceProvider: "b2",
+		SourcePath:     "bucket/src",
+		DestProvider:   "b2",
+		DestPath:       "bucket/dst",
+		ExtraArgs:      "--progress",
+	}
+	argv, err := AssembleArgv(src, cfg, job, false)
+	if err != nil {
+		t.Fatalf("AssembleArgv: %v", err)
+	}
+	for _, a := range argv {
+		if a == "-v" {
+			t.Errorf("default -v should not be added when --progress is set: %v", argv)
+		}
 	}
 }
 
