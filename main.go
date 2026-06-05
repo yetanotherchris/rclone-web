@@ -55,22 +55,6 @@ func runInit(args []string) error {
 	cfg.ConfigPath = *rcloneConfigFlag
 	sc := bufio.NewScanner(os.Stdin)
 
-	prompt := func(label, def string) string {
-		if def != "" {
-			fmt.Printf("%s [%s]: ", label, def)
-		} else {
-			fmt.Printf("%s: ", label)
-		}
-		if !sc.Scan() {
-			return def
-		}
-		v := strings.TrimSpace(sc.Text())
-		if v == "" {
-			return def
-		}
-		return v
-	}
-
 	appConfigFile := defaultConfigFile()
 	if _, err := os.Stat(appConfigFile); err == nil {
 		fmt.Printf("Config already exists at %s.\nRunning init will overwrite it. Continue? (y/N): ", appConfigFile)
@@ -82,24 +66,6 @@ func runInit(args []string) error {
 		} else {
 			return fmt.Errorf("init cancelled")
 		}
-	}
-
-	mode := prompt("Password mode (prefix/full)", cfg.PasswordMode)
-	if mode != "prefix" && mode != "full" {
-		mode = "prefix"
-	}
-	cfg.PasswordMode = mode
-
-	if mode == "prefix" {
-		pl := cfg.PrefixLength
-		fmt.Printf("Prefix length (min 3) [%d]: ", pl)
-		if sc.Scan() {
-			var n int
-			if cnt, _ := fmt.Sscanf(strings.TrimSpace(sc.Text()), "%d", &n); cnt == 1 && n >= 3 {
-				pl = n
-			}
-		}
-		cfg.PrefixLength = pl
 	}
 
 	idle := cfg.IdleTimeoutSeconds
@@ -144,17 +110,25 @@ func runInit(args []string) error {
 		fmt.Println("✓ Config decrypted successfully.")
 	}
 
-	if mode == "prefix" {
-		if len(passphrase) <= cfg.PrefixLength {
-			return fmt.Errorf("passphrase must be longer than prefixLength (%d)", cfg.PrefixLength)
+	fmt.Print("Enable short password (type only the first N chars to unlock)? (y/N): ")
+	if sc.Scan() {
+		if answer := strings.TrimSpace(strings.ToLower(sc.Text())); answer == "y" || answer == "yes" {
+			fmt.Print("Short password: ")
+			var short string
+			if sc.Scan() {
+				short = strings.TrimSpace(sc.Text())
+			}
+			if !strings.HasPrefix(passphrase, short) || len(short) == 0 {
+				return fmt.Errorf("short password must be a non-empty prefix of the full password")
+			}
+			suffix := passphrase[len(short):]
+			store := creds.New()
+			key := creds.CredKey(cfg.ConfigPath)
+			if err := store.Set(key, suffix); err != nil {
+				return fmt.Errorf("store suffix in credential store: %w", err)
+			}
+			fmt.Println("✓ Suffix saved to credential store.")
 		}
-		suffix := passphrase[cfg.PrefixLength:]
-		store := creds.New()
-		key := creds.CredKey(cfg.ConfigPath)
-		if err := store.Set(key, suffix); err != nil {
-			return fmt.Errorf("store suffix in credential store: %w", err)
-		}
-		fmt.Println("✓ Suffix saved to credential store.")
 	}
 
 	if err := cfg.Save(appConfigFile); err != nil {
@@ -184,18 +158,13 @@ func runServe() {
 
 	store := creds.New()
 
-	assemblePassphrase := func(prefix string) (string, error) {
-		if cfg.PasswordMode == "full" {
-			return prefix, nil
-		}
+	assemblePassphrase := func(input string) (string, error) {
 		key := creds.CredKey(cfg.ConfigPath)
 		suffix, err := store.Get(key)
 		if err != nil {
-			// Fall back to treating prefix as the full passphrase.
-			log.Printf("credential store unavailable (%v), treating input as full passphrase", err)
-			return prefix, nil
+			return input, nil
 		}
-		return prefix + suffix, nil
+		return input + suffix, nil
 	}
 
 	srv := server.New(cfg, webFS(), assemblePassphrase)
