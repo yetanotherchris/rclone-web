@@ -40,6 +40,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.addEventListener('change', updateCmdPreview);
   });
   document.getElementById('f-cmd').addEventListener('change', toggleDestFields);
+  ['f-sprov', 'f-dprov'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', updatePathPlaceholders);
+  });
 
   // Extra-args help: click a flag to append it to the field
   document.getElementById('flag-help').addEventListener('click', (e) => {
@@ -297,6 +301,23 @@ function isOneSided(cmd) {
   return ['lsf', 'ls', 'lsl', 'lsjson', 'lsd'].includes(cmd);
 }
 
+function isLocalProvider(provName) {
+  if (!provName) return true; // "(none / local path)"
+  const prov = providers.find(p => p.name === provName);
+  return !prov || prov.type === 'local';
+}
+
+function updatePathPlaceholders() {
+  const sLocal = isLocalProvider(document.getElementById('f-sprov').value);
+  const dLocal = isLocalProvider(document.getElementById('f-dprov').value);
+  document.getElementById('f-spath').placeholder = sLocal
+    ? 'D:/folder/  or  D:/folder/file.txt'
+    : 'bucketname/folder/  or  bucketname/folder/file.txt';
+  document.getElementById('f-dpath').placeholder = dLocal
+    ? 'D:/backups/'
+    : 'bucketname/  or  bucketname/folder1/folder2/';
+}
+
 // ---- Jobs list ----
 function renderJobsList() {
   const tbody = document.getElementById('jobs-tbody');
@@ -358,6 +379,7 @@ function openJobForm(jobId) {
   }
 
   toggleDestFields();
+  updatePathPlaceholders();
   updateCmdPreview();
   showScreen('jobform');
 }

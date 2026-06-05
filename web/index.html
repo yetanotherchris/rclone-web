@@ -141,6 +141,7 @@
             <div>
               <label class="mb-1 block text-sm font-medium">Source path</label>
               <input id="f-spath" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none" />
+              <p class="mt-1 text-xs text-slate-400">Can be a file or a folder. A folder's contents are copied, not the folder itself.</p>
             </div>
             <div id="dest-prov-field">
               <label class="mb-1 block text-sm font-medium">Destination provider</label>
@@ -149,6 +150,7 @@
             <div id="dest-path-field">
               <label class="mb-1 block text-sm font-medium">Destination path</label>
               <input id="f-dpath" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none" />
+              <p class="mt-1 text-xs text-slate-400">Always treated as a folder. A trailing name (e.g. "bucketname/readme.md") creates a folder of that name — copy/sync/move can't rename a file.</p>
             </div>
             <div class="col-span-2">
               <label class="mb-1 block text-sm font-medium">Extra args <span class="font-normal text-slate-400">(space-separated; no quoted spaces in v1)</span></label>
