@@ -17,9 +17,13 @@ There is exactly **one** persisted file: the age-encrypted YAML at `~/.config/rc
 
 All other settings (bind address, port, idle timeout, rclone binary path) are **command-line flags** passed to the `serve` command. There is no plaintext config file.
 
+## Init UX
+
+All password prompts in `init` use `golang.org/x/term.ReadPassword` so characters are hidden (not echoed to the terminal).
+
 ## Short password (credential store)
 
-During `init`, the user can opt into a short-password mode. They enter their full password, then choose a shorter prefix they'll type each time to unlock. The suffix (`fullPassword[len(short):]`) is stored in the OS credential store (macOS Keychain, Windows Credential Manager, Linux secret service).
+During `init`, the user can opt into a short-password mode. They enter their full password, then are asked **how many characters** they wish to type at unlock time (default: 4). The first N characters become the short password; the remainder (`fullPassword[n:]`) is stored in the OS credential store (macOS Keychain, Windows Credential Manager, Linux secret service).
 
 At unlock time the server concatenates `userInput + storedSuffix` to reconstruct the full passphrase. If no credential store entry exists, the input is used directly as the full passphrase.
 

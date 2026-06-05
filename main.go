@@ -8,12 +8,14 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/yetanotherchris/rclone-web/internal/config"
 	"github.com/yetanotherchris/rclone-web/internal/creds"
 	"github.com/yetanotherchris/rclone-web/internal/secret"
 	"github.com/yetanotherchris/rclone-web/internal/server"
+	"golang.org/x/term"
 )
 
 
@@ -51,18 +53,22 @@ func runInit(args []string) error {
 		return fmt.Errorf("create config dir: %w", err)
 	}
 
-	sc := bufio.NewScanner(os.Stdin)
-
 	fmt.Print("Password: ")
-	var passphrase string
-	if sc.Scan() {
-		passphrase = strings.TrimSpace(sc.Text())
+	pw, err := term.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		return fmt.Errorf("read password: %w", err)
 	}
+	fmt.Println()
+	passphrase := strings.TrimSpace(string(pw))
+
 	fmt.Print("Confirm password: ")
-	var confirm string
-	if sc.Scan() {
-		confirm = strings.TrimSpace(sc.Text())
+	pw2, err := term.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		return fmt.Errorf("read password: %w", err)
 	}
+	fmt.Println()
+	confirm := strings.TrimSpace(string(pw2))
+
 	if passphrase != confirm {
 		return fmt.Errorf("passwords do not match")
 	}
@@ -85,24 +91,32 @@ func runInit(args []string) error {
 		fmt.Println("✓ Config decrypted successfully.")
 	}
 
+	sc := bufio.NewScanner(os.Stdin)
+
 	fmt.Print("Enable short password (type only the first N chars to unlock)? (y/N): ")
 	if sc.Scan() {
 		if answer := strings.TrimSpace(strings.ToLower(sc.Text())); answer == "y" || answer == "yes" {
-			fmt.Print("Short password: ")
-			var short string
+			fmt.Print("How many characters do you wish to type? (default 4): ")
+			n := 4
 			if sc.Scan() {
-				short = strings.TrimSpace(sc.Text())
+				if s := strings.TrimSpace(sc.Text()); s != "" {
+					parsed, parseErr := strconv.Atoi(s)
+					if parseErr != nil || parsed <= 0 {
+						return fmt.Errorf("invalid number of characters: %q", s)
+					}
+					n = parsed
+				}
 			}
-			if !strings.HasPrefix(passphrase, short) || len(short) == 0 {
-				return fmt.Errorf("short password must be a non-empty prefix of the full password")
+			if n >= len(passphrase) {
+				return fmt.Errorf("short password length (%d) must be less than full password length (%d)", n, len(passphrase))
 			}
-			suffix := passphrase[len(short):]
+			suffix := passphrase[n:]
 			store := creds.New()
 			key := creds.CredKey(ageCfgPath)
 			if err := store.Set(key, suffix); err != nil {
 				return fmt.Errorf("store suffix in credential store: %w", err)
 			}
-			fmt.Println("✓ Suffix saved to credential store.")
+			fmt.Printf("✓ Short password set to first %d character(s). Suffix saved to credential store.\n", n)
 		}
 	}
 
