@@ -19,6 +19,9 @@ import (
 )
 
 
+// version is set at build time via -ldflags "-X main.version=...".
+var version = "dev"
+
 func appConfigDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -32,11 +35,17 @@ func defaultAgeConfig() string {
 }
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "init" {
-		if err := runInit(os.Args[2:]); err != nil {
-			log.Fatalf("init: %v", err)
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "init":
+			if err := runInit(os.Args[2:]); err != nil {
+				log.Fatalf("init: %v", err)
+			}
+			return
+		case "version", "--version", "-version":
+			fmt.Printf("rclone-web %s\n", version)
+			return
 		}
-		return
 	}
 	runServe()
 }

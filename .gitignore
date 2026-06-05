@@ -36,9 +36,6 @@ rclone-web
 dist/
 .tools/
 
-# App config (created by rclone-web init)
-rclone-web.json
-
 # E2E test artefacts
 e2e/.server
 e2e/.fixtures
