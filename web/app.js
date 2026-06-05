@@ -40,6 +40,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.addEventListener('change', updateCmdPreview);
   });
   document.getElementById('f-cmd').addEventListener('change', toggleDestFields);
+  ['f-sprov', 'f-dprov'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', updatePathPlaceholders);
+  });
+
+  // Extra-args help: click a flag to append it to the field
+  document.getElementById('flag-help').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-flag]');
+    if (!btn) return;
+    const input = document.getElementById('f-extra');
+    const cur = input.value.trim();
+    const flag = btn.dataset.flag;
+    input.value = (cur ? cur + ' ' : '') + flag;
+    input.focus();
+    // If the flag carries a {PLACEHOLDER}, select it so the value can be typed over it.
+    const ph = flag.match(/\{[^}]*\}/);
+    if (ph) {
+      const start = input.value.length - flag.length + ph.index;
+      input.setSelectionRange(start, start + ph[0].length);
+    }
+    updateCmdPreview();
+  });
 
   // Save buttons
   document.getElementById('save-job-btn').addEventListener('click', saveJob);
@@ -279,6 +301,23 @@ function isOneSided(cmd) {
   return ['lsf', 'ls', 'lsl', 'lsjson', 'lsd'].includes(cmd);
 }
 
+function isLocalProvider(provName) {
+  if (!provName) return true; // "(none / local path)"
+  const prov = providers.find(p => p.name === provName);
+  return !prov || prov.type === 'local';
+}
+
+function updatePathPlaceholders() {
+  const sLocal = isLocalProvider(document.getElementById('f-sprov').value);
+  const dLocal = isLocalProvider(document.getElementById('f-dprov').value);
+  document.getElementById('f-spath').placeholder = sLocal
+    ? 'D:/folder/  or  D:/folder/file.txt'
+    : 'bucketname/folder/  or  bucketname/folder/file.txt';
+  document.getElementById('f-dpath').placeholder = dLocal
+    ? 'D:/backups/'
+    : 'bucketname/  or  bucketname/folder1/folder2/';
+}
+
 // ---- Jobs list ----
 function renderJobsList() {
   const tbody = document.getElementById('jobs-tbody');
@@ -324,12 +363,12 @@ function openJobForm(jobId) {
   const job = jobId ? jobs.find(j => j.id === jobId) : null;
   document.getElementById('jobform-title').textContent = job ? 'Edit job' : 'New job';
   document.getElementById('f-id').value = job ? job.id : '';
-  document.getElementById('f-name').value = job ? job.name : '';
+  document.getElementById('f-name').value = job ? (job.name || '') : '';
   document.getElementById('f-cmd').value = job ? job.command : 'copy';
   document.getElementById('f-enabled').checked = job ? job.enabled : true;
-  document.getElementById('f-spath').value = job ? job.source_path : '';
-  document.getElementById('f-dpath').value = job ? job.dest_path : '';
-  document.getElementById('f-extra').value = job ? job.extra_args : '';
+  document.getElementById('f-spath').value = job ? (job.source_path || '') : '';
+  document.getElementById('f-dpath').value = job ? (job.dest_path || '') : '';
+  document.getElementById('f-extra').value = job && job.extra_args && job.extra_args !== 'undefined' ? job.extra_args : '';
   clearError('jobform-error');
 
   // Populate provider dropdowns
@@ -340,6 +379,7 @@ function openJobForm(jobId) {
   }
 
   toggleDestFields();
+  updatePathPlaceholders();
   updateCmdPreview();
   showScreen('jobform');
 }

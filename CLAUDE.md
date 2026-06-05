@@ -17,6 +17,8 @@ There is exactly **one** persisted file: the age-encrypted YAML at `~/.config/rc
 
 All other settings (bind address, port, idle timeout, rclone binary path) are **command-line flags** passed to the `serve` command. There is no plaintext config file.
 
+The server binds a fixed default port (8088) so the browser origin stays stable and the saved password isn't re-prompted. If that port is already in use, it falls back to a random free port for that run. Pass `--port N` for a specific port, or `--port 0` to always use a random one.
+
 ## Password workflow
 
 **Full passphrase (no short password)**
@@ -67,7 +69,7 @@ This is intended for daemon/service use where the server should start ready with
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--config` | `~/.config/rcloneweb/rcloneweb.yml.age` | Path to age-encrypted config |
-| `--port` | 0 (random) | HTTP port |
+| `--port` | 8088 (falls back to a random free port if in use) | HTTP port |
 | `--bind` | `127.0.0.1` | Bind address |
 | `--idle-timeout` | 300 | Idle timeout in seconds |
 | `--rclone-path` | `rclone` | Path to rclone binary (default assumes rclone is on $PATH) |

@@ -129,7 +129,7 @@ func runServe() {
 	defaults := config.DefaultConfig()
 
 	ageCfgFlag := flag.String("config", defaultAgeConfig(), "Path to age-encrypted config")
-	portFlag := flag.Int("port", defaults.Port, "HTTP port (0 = random free port)")
+	portFlag := flag.Int("port", defaults.Port, "HTTP port (falls back to a random free port if in use; 0 = always random)")
 	bindFlag := flag.String("bind", defaults.BindAddr, "Bind address")
 	idleFlag := flag.Int("idle-timeout", defaults.IdleTimeoutSeconds, "Idle timeout in seconds (ignored with --key-file)")
 	rcloneFlag := flag.String("rclone-path", defaults.RclonePath, "Path to rclone binary (default assumes rclone is on $PATH)")

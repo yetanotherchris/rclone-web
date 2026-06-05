@@ -103,6 +103,11 @@ func (s *Server) AutoUnlock(passphrase string) error {
 func (s *Server) Start() (string, error) {
 	addr := fmt.Sprintf("%s:%d", s.bindAddr, s.port)
 	ln, err := net.Listen("tcp", addr)
+	if err != nil && s.port != 0 {
+		// Preferred port is in use; fall back to a random free port.
+		log.Printf("port %d unavailable (%v); falling back to a random port", s.port, err)
+		ln, err = net.Listen("tcp", fmt.Sprintf("%s:0", s.bindAddr))
+	}
 	if err != nil {
 		return "", fmt.Errorf("listen %s: %w", addr, err)
 	}
