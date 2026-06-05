@@ -121,6 +121,15 @@ export function renderProviderFields() {
   const required = options.filter(o => !o.Advanced && !o.Hide);
   const advanced = options.filter(o => o.Advanced && !o.Hide);
 
+  // Google Drive's service-account JSON blob is hidden from rclone's interactive
+  // configurator (Hide=2), so it's filtered out above. Surface it here: pasting
+  // the JSON itself stores the credentials inside the encrypted config, rather
+  // than referencing a plaintext file on disk (service_account_file).
+  if (type === 'drive') {
+    const blob = options.find(o => o.Name === 'service_account_credentials');
+    if (blob && !advanced.includes(blob)) advanced.unshift(blob);
+  }
+
   const fieldsEl = document.getElementById('p-fields');
   const advEl = document.getElementById('p-fields-advanced');
 
@@ -143,10 +152,14 @@ function backendFieldHTML(opt, prefix) {
   const key = opt.Name || '';
   const label = opt.Help ? opt.Help.split('\n')[0] : key;
   const isPassword = opt.IsPassword || opt.Sensitive;
+  const isBlob = key === 'service_account_credentials';
   const envKey = prefix + key.toUpperCase();
-  let input;
+  let input, hint = '';
 
-  if (opt.Examples && opt.Examples.length) {
+  if (isBlob) {
+    input = `<textarea id="pf-${esc(key)}" rows="4" placeholder='{ "type": "service_account", "project_id": "...", ... }' class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>`;
+    hint = 'Paste the JSON itself to keep the credentials inside the encrypted config — no plaintext key file left on disk. Or use the "…JSON file path" field instead if you prefer to reference a file.';
+  } else if (opt.Examples && opt.Examples.length) {
     const opts = opt.Examples.map(ex => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join('');
     input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
   } else if (opt.Type === 'bool') {
@@ -157,10 +170,11 @@ function backendFieldHTML(opt, prefix) {
     input = `<input type="${t}" id="pf-${esc(key)}" value="${esc(def)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm">`;
   }
 
+  const hintHTML = hint ? `<p class="mt-1 text-xs text-slate-500">${esc(hint)}</p>` : '';
   return `<div>
     <label class="mb-1 block text-sm font-medium">${esc(label)}
       <span class="ml-1 font-mono text-xs text-slate-400">${esc(envKey)}</span>
-    </label>${input}</div>`;
+    </label>${input}${hintHTML}</div>`;
 }
 
 export function addCustomKey() {

@@ -458,6 +458,10 @@
     const options = backend && backend.Options || [];
     const required = options.filter((o) => !o.Advanced && !o.Hide);
     const advanced = options.filter((o) => o.Advanced && !o.Hide);
+    if (type === "drive") {
+      const blob = options.find((o) => o.Name === "service_account_credentials");
+      if (blob && !advanced.includes(blob)) advanced.unshift(blob);
+    }
     const fieldsEl = document.getElementById("p-fields");
     const advEl = document.getElementById("p-fields-advanced");
     if (required.length) {
@@ -477,9 +481,13 @@
     const key = opt.Name || "";
     const label = opt.Help ? opt.Help.split("\n")[0] : key;
     const isPassword = opt.IsPassword || opt.Sensitive;
+    const isBlob = key === "service_account_credentials";
     const envKey = prefix + key.toUpperCase();
-    let input;
-    if (opt.Examples && opt.Examples.length) {
+    let input, hint = "";
+    if (isBlob) {
+      input = `<textarea id="pf-${esc(key)}" rows="4" placeholder='{ "type": "service_account", "project_id": "...", ... }' class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>`;
+      hint = 'Paste the JSON itself to keep the credentials inside the encrypted config — no plaintext key file left on disk. Or use the "…JSON file path" field instead if you prefer to reference a file.';
+    } else if (opt.Examples && opt.Examples.length) {
       const opts = opt.Examples.map((ex) => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join("");
       input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
     } else if (opt.Type === "bool") {
@@ -489,10 +497,11 @@
       const def = opt.DefaultStr !== void 0 ? opt.DefaultStr : opt.Default !== void 0 ? String(opt.Default) : "";
       input = `<input type="${t}" id="pf-${esc(key)}" value="${esc(def)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm">`;
     }
+    const hintHTML = hint ? `<p class="mt-1 text-xs text-slate-500">${esc(hint)}</p>` : "";
     return `<div>
     <label class="mb-1 block text-sm font-medium">${esc(label)}
       <span class="ml-1 font-mono text-xs text-slate-400">${esc(envKey)}</span>
-    </label>${input}</div>`;
+    </label>${input}${hintHTML}</div>`;
   }
   function addCustomKey() {
     const row = document.createElement("div");
