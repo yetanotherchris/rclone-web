@@ -113,7 +113,7 @@ func runInit(args []string) error {
 			suffix := passphrase[n:]
 			store := creds.New()
 			key := creds.CredKey(ageCfgPath)
-			if err := store.Set(key, suffix); err != nil {
+			if err := store.Set(key, fmt.Sprintf("%d:%s", n, suffix)); err != nil {
 				return fmt.Errorf("store suffix in credential store: %w", err)
 			}
 			fmt.Printf("✓ Short password set to first %d character(s). Suffix saved to credential store.\n", n)
@@ -146,16 +146,40 @@ func runServe() {
 
 	store := creds.New()
 
+	// Detect short-password mode: check if a credential store entry exists and
+	// parse the prefix length from the stored "N:suffix" value.
+	shortLen := 0
+	{
+		key := creds.CredKey(*ageCfgFlag)
+		if val, err := store.Get(key); err == nil {
+			if idx := strings.IndexByte(val, ':'); idx > 0 {
+				if n, err2 := strconv.Atoi(val[:idx]); err2 == nil && n > 0 {
+					shortLen = n
+				}
+			}
+			if shortLen == 0 {
+				shortLen = 4 // backward compat: old format stored suffix without length prefix
+			}
+		}
+	}
+
 	assemblePassphrase := func(input string) (string, error) {
 		key := creds.CredKey(cfg.ConfigPath)
-		suffix, err := store.Get(key)
+		val, err := store.Get(key)
 		if err != nil {
 			return input, nil
 		}
-		return input + suffix, nil
+		// New format: "N:suffix"
+		if idx := strings.IndexByte(val, ':'); idx > 0 {
+			if _, err2 := strconv.Atoi(val[:idx]); err2 == nil {
+				return input + val[idx+1:], nil
+			}
+		}
+		// Old format: raw suffix
+		return input + val, nil
 	}
 
-	srv := server.New(cfg, webFS(), assemblePassphrase)
+	srv := server.New(cfg, webFS(), assemblePassphrase, shortLen)
 
 	if *keyFileFlag != "" {
 		if *bindFlag != "127.0.0.1" && *bindFlag != "localhost" && *bindFlag != "::1" {

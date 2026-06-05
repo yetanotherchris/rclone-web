@@ -38,3 +38,10 @@ dist/
 
 # App config (created by rclone-web init)
 rclone-web.json
+
+# E2E test artefacts
+e2e/.server
+e2e/.fixture.json
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/

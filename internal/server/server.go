@@ -33,6 +33,7 @@ type Server struct {
 	rcCfg       *config.RcloneConfig // nil when locked
 	passphrase  string               // held for re-encryption
 	keyFileMode bool                 // true when started with --key-file (always unlocked, no session required)
+	shortLen    int                  // 0 = full passphrase mode; >0 = short-password prefix length
 
 	bindAddr string
 	port     int
@@ -40,20 +41,23 @@ type Server struct {
 }
 
 // New creates the server. assemblePassphrase takes the browser-supplied prefix
-// and returns the full age passphrase.
+// and returns the full age passphrase. shortLen is 0 for full-passphrase mode,
+// or the number of characters the user types at unlock for short-password mode.
 func New(
 	cfg *config.AppConfig,
 	webFS fs.FS,
 	assemblePassphrase func(prefix string) (string, error),
+	shortLen int,
 ) *Server {
 	s := &Server{
-		cfg:               cfg,
-		webFS:             webFS,
-		src:               &remotes.EnvVarSource{},
-		runs:              runner.NewManager(),
+		cfg:                cfg,
+		webFS:              webFS,
+		src:                &remotes.EnvVarSource{},
+		runs:               runner.NewManager(),
 		assemblePassphrase: assemblePassphrase,
-		bindAddr:          cfg.BindAddr,
-		port:              cfg.Port,
+		bindAddr:           cfg.BindAddr,
+		port:               cfg.Port,
+		shortLen:           shortLen,
 	}
 
 	s.sessions = session.NewStore(
@@ -274,6 +278,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		jsonOK(w, map[string]interface{}{
 			"locked":          false,
 			"idleSecondsLeft": -1,
+			"shortLen":        s.shortLen,
 		})
 		return
 	}
@@ -282,6 +287,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]interface{}{
 		"locked":          !ok,
 		"idleSecondsLeft": int(remaining.Seconds()),
+		"shortLen":        s.shortLen,
 	})
 }
 
@@ -545,13 +551,9 @@ func (s *Server) handleListProviders(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "locked", http.StatusUnauthorized)
 		return
 	}
-	type providerEntry struct {
-		Name string `json:"name"`
-		config.Provider
-	}
-	result := make([]providerEntry, 0, len(cfg.Rclone.Providers))
+	result := make([]map[string]interface{}, 0, len(cfg.Rclone.Providers))
 	for name, p := range cfg.Rclone.Providers {
-		result = append(result, providerEntry{Name: name, Provider: p})
+		result = append(result, providerToFlat(name, p))
 	}
 	jsonOK(w, result)
 }
@@ -570,26 +572,21 @@ func (s *Server) handleGetProvider(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "provider not found", http.StatusNotFound)
 		return
 	}
-	type resp struct {
-		Name string `json:"name"`
-		config.Provider
-	}
-	jsonOK(w, resp{Name: name, Provider: p})
+	jsonOK(w, providerToFlat(name, p))
 }
 
 func (s *Server) handleCreateProvider(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		Name string `json:"name"`
-		config.Provider
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	var flat map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&flat); err != nil {
 		jsonErr(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	if body.Name == "" {
+	name := strings.TrimSpace(flat["name"])
+	if name == "" {
 		jsonErr(w, "name is required", http.StatusBadRequest)
 		return
 	}
+	p := providerFromFlat(flat)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -597,24 +594,23 @@ func (s *Server) handleCreateProvider(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "locked", http.StatusUnauthorized)
 		return
 	}
-	s.rcCfg.Rclone.Providers[body.Name] = body.Provider
+	s.rcCfg.Rclone.Providers[name] = p
 	if err := s.saveConfig(); err != nil {
 		jsonErr(w, "save error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
-	jsonOK(w, body)
+	jsonOK(w, providerToFlat(name, p))
 }
 
 func (s *Server) handleUpdateProvider(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	var body struct {
-		config.Provider
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	var flat map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&flat); err != nil {
 		jsonErr(w, "bad request", http.StatusBadRequest)
 		return
 	}
+	p := providerFromFlat(flat)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -626,12 +622,12 @@ func (s *Server) handleUpdateProvider(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "provider not found", http.StatusNotFound)
 		return
 	}
-	s.rcCfg.Rclone.Providers[name] = body.Provider
+	s.rcCfg.Rclone.Providers[name] = p
 	if err := s.saveConfig(); err != nil {
 		jsonErr(w, "save error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]string{"name": name})
+	jsonOK(w, providerToFlat(name, p))
 }
 
 func (s *Server) handleDeleteProvider(w http.ResponseWriter, r *http.Request) {
@@ -710,4 +706,32 @@ func jsonErr(w http.ResponseWriter, msg string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+// providerToFlat returns a flat JSON-friendly map with "name", "type", and all
+// Extra fields at the top level — matching the shape the JS UI expects.
+func providerToFlat(name string, p config.Provider) map[string]interface{} {
+	m := make(map[string]interface{}, len(p.Extra)+2)
+	m["name"] = name
+	m["type"] = p.Type
+	for k, v := range p.Extra {
+		m[k] = v
+	}
+	return m
+}
+
+// providerFromFlat builds a Provider from the flat JSON map the JS UI sends.
+// Keys "name" and "type" are reserved; everything else goes into Extra.
+func providerFromFlat(flat map[string]string) config.Provider {
+	p := config.Provider{
+		Type:  flat["type"],
+		Extra: make(map[string]string),
+	}
+	for k, v := range flat {
+		if k == "name" || k == "type" {
+			continue
+		}
+		p.Extra[k] = v
+	}
+	return p
 }

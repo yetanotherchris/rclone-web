@@ -25,13 +25,15 @@ type Provider struct {
 }
 
 type Job struct {
-	ID          string `yaml:"id,omitempty" json:"id,omitempty"`
-	Name        string `yaml:"name,omitempty" json:"name,omitempty"`
-	Source      string `yaml:"source" json:"source"`
-	Destination string `yaml:"destination,omitempty" json:"destination,omitempty"`
-	Command     string `yaml:"command,omitempty" json:"command,omitempty"`
-	ExtraArgs   string `yaml:"extra_args,omitempty" json:"extra_args,omitempty"`
-	Enabled     bool   `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	ID             string `yaml:"id,omitempty" json:"id,omitempty"`
+	Name           string `yaml:"name,omitempty" json:"name,omitempty"`
+	SourceProvider string `yaml:"source_provider,omitempty" json:"source_provider,omitempty"`
+	SourcePath     string `yaml:"source_path" json:"source_path"`
+	DestProvider   string `yaml:"dest_provider,omitempty" json:"dest_provider,omitempty"`
+	DestPath       string `yaml:"dest_path,omitempty" json:"dest_path,omitempty"`
+	Command        string `yaml:"command,omitempty" json:"command,omitempty"`
+	ExtraArgs      string `yaml:"extra_args,omitempty" json:"extra_args,omitempty"`
+	Enabled        bool   `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 }
 
 // DisplayName returns a human-readable label for the job.
@@ -39,8 +41,16 @@ func (j *Job) DisplayName() string {
 	if j.Name != "" {
 		return j.Name
 	}
-	if j.Source != "" && j.Destination != "" {
-		return j.Source + " → " + j.Destination
+	src := j.SourcePath
+	if j.SourceProvider != "" {
+		src = j.SourceProvider + ":" + j.SourcePath
+	}
+	if j.DestPath != "" {
+		dst := j.DestPath
+		if j.DestProvider != "" {
+			dst = j.DestProvider + ":" + j.DestPath
+		}
+		return src + " → " + dst
 	}
 	return j.ID
 }

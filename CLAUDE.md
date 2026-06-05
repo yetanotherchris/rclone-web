@@ -82,3 +82,36 @@ This is intended for daemon/service use where the server should start ready with
 | `internal/server` | HTTP handlers, session management, job/provider API |
 | `internal/runner` | Subprocess management for rclone invocations |
 | `internal/remotes` | Converts provider map to `RCLONE_CONFIG_*` env vars and assembles argv |
+
+## Running the unit tests
+
+```
+go test ./...
+```
+
+## Running the e2e tests
+
+**Prerequisites:** `rclone` on `$PATH`, Node.js ≥ 18, Go.
+
+```bash
+cd e2e
+npm install
+npm run install-browsers   # first time only — downloads Chromium
+npm test
+```
+
+The test suite (`e2e/tests/copy-job.spec.ts`) will:
+1. Build the server binary (`e2e/.server`)
+2. Generate a temporary age-encrypted config with a local-to-local copy job
+3. Start the server in `--key-file` mode (no unlock screen)
+4. Run three Playwright tests against it:
+   - Lock screen is hidden (key-file mode bypass)
+   - Dashboard shows the test job
+   - Clicking Run copies files and status shows `success · exit 0`
+5. Kill the server and clean up the temp directory
+
+Run with a visible browser for debugging:
+
+```bash
+npm run test:headed
+```

@@ -33,17 +33,30 @@ func (e *EnvVarSource) Remote(p config.Provider, name, path string) string {
 	return name + ":" + path
 }
 
+// buildRemote resolves one side of a job into a rclone remote argument.
+// If providerName is empty the path is used as-is (bare local path).
+// If the named provider is not found it falls back to "name:path".
+func buildRemote(src *EnvVarSource, cfg *config.RcloneConfig, providerName, path string) string {
+	if providerName == "" {
+		return path
+	}
+	p, ok := cfg.Rclone.Providers[providerName]
+	if !ok {
+		return providerName + ":" + path
+	}
+	return src.Remote(p, providerName, path)
+}
+
 // AssembleArgv builds the full rclone argument list for a job run (not a shell
-// string — each token is a discrete argv element). Job.Source and Job.Destination
-// are full rclone remote paths (e.g. "gdrive:2026", "b2:bucket/path", or a local
-// path like "D:/Photos"). Command defaults to "sync" when not set.
+// string — each token is a discrete argv element). Command defaults to "sync"
+// when not set.
 func AssembleArgv(
 	src *EnvVarSource,
 	cfg *config.RcloneConfig,
 	job *config.Job,
 	dryRun bool,
 ) ([]string, error) {
-	if job.Source == "" {
+	if job.SourcePath == "" {
 		return nil, fmt.Errorf("job %q has no source", job.DisplayName())
 	}
 
@@ -52,13 +65,13 @@ func AssembleArgv(
 		cmd = "sync"
 	}
 
-	argv := []string{cmd, job.Source}
+	argv := []string{cmd, buildRemote(src, cfg, job.SourceProvider, job.SourcePath)}
 
 	if !IsOneSided(cmd) {
-		if job.Destination == "" {
+		if job.DestPath == "" {
 			return nil, fmt.Errorf("job %q has no destination", job.DisplayName())
 		}
-		argv = append(argv, job.Destination)
+		argv = append(argv, buildRemote(src, cfg, job.DestProvider, job.DestPath))
 	}
 
 	if cfg.Rclone.Flags != "" {

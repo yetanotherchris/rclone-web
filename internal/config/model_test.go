@@ -17,8 +17,10 @@ rclone-web:
       type: local
   jobs:
     - name: "Photos to B2"
-      source: "localdisk:D:/Photos"
-      destination: "b2:my-bucket/photos"
+      source_provider: "localdisk"
+      source_path: "D:/Photos"
+      dest_provider: "b2"
+      dest_path: "my-bucket/photos"
       command: copy
       extra_args: "--exclude *.tmp"
       enabled: true
@@ -40,11 +42,17 @@ rclone-web:
 	if j.Name != "Photos to B2" {
 		t.Errorf("job name: got %q", j.Name)
 	}
-	if j.Source != "localdisk:D:/Photos" {
-		t.Errorf("source: got %q", j.Source)
+	if j.SourceProvider != "localdisk" {
+		t.Errorf("source_provider: got %q", j.SourceProvider)
 	}
-	if j.Destination != "b2:my-bucket/photos" {
-		t.Errorf("destination: got %q", j.Destination)
+	if j.SourcePath != "D:/Photos" {
+		t.Errorf("source_path: got %q", j.SourcePath)
+	}
+	if j.DestProvider != "b2" {
+		t.Errorf("dest_provider: got %q", j.DestProvider)
+	}
+	if j.DestPath != "my-bucket/photos" {
+		t.Errorf("dest_path: got %q", j.DestPath)
 	}
 	// ID should be auto-assigned when absent
 	if j.ID == "" {
