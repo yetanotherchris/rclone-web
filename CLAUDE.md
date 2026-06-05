@@ -17,6 +17,26 @@ There is exactly **one** persisted file: the age-encrypted YAML at `~/.config/rc
 
 All other settings (bind address, port, idle timeout, rclone binary path) are **command-line flags** passed to the `serve` command. There is no plaintext config file.
 
+## Password workflow
+
+**Full passphrase (no short password)**
+
+1. `init` prompts for a password (hidden), encrypts the YAML config with it via age, and saves the `.age` file.
+2. Each time `rclone-web serve` runs, the browser shows an unlock screen. You type the full password; the server decrypts the config into memory and holds it there until the idle timeout fires, then zeroes it out.
+
+**Short password**
+
+1. During `init`, after setting the full password, you choose how many characters to type at unlock time (default 4).
+2. The passphrase is split at position `n`: `short = passphrase[:n]`, `suffix = passphrase[n:]`.
+3. The `suffix` is saved to the OS credential store (Keychain / Windows Credential Manager / Linux secret service). The full password is not stored anywhere — only the suffix.
+4. At unlock time you type just the first `n` characters. The server fetches the suffix from the credential store, concatenates `userInput + suffix`, and uses that to decrypt the config. If no credential store entry exists, the raw input is used as the full passphrase.
+
+**Key-file mode**
+
+An alternative to the browser unlock screen — pass `--key-file /path/to/file` and the server reads the passphrase from that file at startup, auto-unlocks, and never prompts. Intended for daemon/service use.
+
+---
+
 ## Init UX
 
 All password prompts in `init` use `golang.org/x/term.ReadPassword` so characters are hidden (not echoed to the terminal).
