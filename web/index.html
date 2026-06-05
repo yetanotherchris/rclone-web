@@ -22,13 +22,13 @@
       <label class="mb-1 block text-sm font-medium text-slate-700">Password prefix</label>
       <p class="mb-2 text-xs text-slate-500">Type the first <span id="prefix-len" class="font-semibold">4</span> characters. The rest is read from the credential store.</p>
       <div class="flex items-center gap-2">
-        <input type="password" id="prefix-input" maxlength="4" autocomplete="off" class="w-24 rounded-lg border border-slate-300 px-3 py-2 text-center tracking-widest focus:border-brand-500 focus:outline-none" />
+        <input type="password" id="prefix-input" maxlength="4" autocomplete="new-password" class="w-24 rounded-lg border border-slate-300 px-3 py-2 text-center tracking-widest focus:border-brand-500 focus:outline-none" />
         <span class="font-mono text-slate-400">+ ••••••••••••</span>
       </div>
     </div>
     <div id="lock-full-mode">
       <label class="mb-1 block text-sm font-medium text-slate-700">Passphrase</label>
-      <input type="password" id="full-input" autocomplete="off" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none" />
+      <input type="password" id="full-input" autocomplete="new-password" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none" />
     </div>
     <p id="lock-error" class="mt-2 text-xs text-rose-600 hidden"></p>
     <button id="unlock-btn" class="mt-6 w-full rounded-lg bg-brand-600 py-2.5 font-medium text-white hover:bg-brand-700">Unlock &amp; decrypt</button>
