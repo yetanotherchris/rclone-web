@@ -167,7 +167,7 @@ func runInit() error {
 
 func runServe() {
 	portFlag := flag.Int("port", 0, "HTTP port (0 = random free port)")
-	configFlag := flag.String("config", defaultConfigFile(), "Path to rclone-web.json")
+	configFlag := flag.String("config", defaultConfigFile(), "Path to rclone-web.yml")
 	flag.Parse()
 
 	cfg, err := config.Load(*configFlag)
