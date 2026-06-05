@@ -85,6 +85,35 @@ This is intended for daemon/service use where the server should start ready with
 | `internal/server` | HTTP handlers, session management, job/provider API |
 | `internal/runner` | Subprocess management for rclone invocations |
 | `internal/remotes` | Converts provider map to `RCLONE_CONFIG_*` env vars and assembles argv |
+| `tools/bundle` | esbuild-based bundler for the web UI (build-time only; see Web UI / JS build) |
+
+## Web UI / JS build
+
+The browser UI is vanilla JS. The **source of truth** is the ES modules under
+`web/js/` (`main.js` is the entry; the rest are `state`, `util`, `api`, `screens`,
+`session`, `remotes`, `dashboard`, `jobs`, `runs`, `providers`). They are bundled
+into a single IIFE at **`web/app.generated.js`** (the `.generated.` in the name
+flags it as a build artifact), which is the file `index.html` loads
+(`/assets/app.generated.js`) and the only JS asset embedded into the binary.
+
+- **`web/app.generated.js` is generated — do not edit it by hand.** Edit `web/js/*.js`.
+- Regenerate after any change under `web/js/`:
+
+  ```
+  go generate ./...
+  ```
+
+  This runs `tools/bundle` (esbuild's Go API → `web/app.generated.js`). The
+  bundle is an IIFE (a classic `<script>`, not `type="module"`), so `index.html`
+  and the static server need no changes.
+- **Commit the regenerated `web/app.generated.js`** alongside the `web/js/`
+  change — it is embedded via `//go:embed` in `embed.go`, so a stale or missing
+  bundle ships stale/broken JS. `go build`/`go test`/e2e do **not** detect a
+  stale bundle, so remember to re-run `go generate`. (A CI guard — `go generate
+  ./... && git diff --exit-code web/app.generated.js` — would catch this; none
+  exists yet.)
+- `esbuild` is in `go.mod` as a **build-time-only** dependency: nothing on the
+  server's import graph references it, so it is not compiled into the binary.
 
 ## Running the unit tests
 
