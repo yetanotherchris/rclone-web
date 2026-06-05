@@ -55,22 +55,6 @@ func runInit(args []string) error {
 	cfg.ConfigPath = *rcloneConfigFlag
 	sc := bufio.NewScanner(os.Stdin)
 
-	prompt := func(label, def string) string {
-		if def != "" {
-			fmt.Printf("%s [%s]: ", label, def)
-		} else {
-			fmt.Printf("%s: ", label)
-		}
-		if !sc.Scan() {
-			return def
-		}
-		v := strings.TrimSpace(sc.Text())
-		if v == "" {
-			return def
-		}
-		return v
-	}
-
 	appConfigFile := defaultConfigFile()
 	if _, err := os.Stat(appConfigFile); err == nil {
 		fmt.Printf("Config already exists at %s.\nRunning init will overwrite it. Continue? (y/N): ", appConfigFile)
@@ -82,24 +66,6 @@ func runInit(args []string) error {
 		} else {
 			return fmt.Errorf("init cancelled")
 		}
-	}
-
-	mode := prompt("Password mode (prefix/full)", cfg.PasswordMode)
-	if mode != "prefix" && mode != "full" {
-		mode = "prefix"
-	}
-	cfg.PasswordMode = mode
-
-	if mode == "prefix" {
-		pl := cfg.PrefixLength
-		fmt.Printf("Prefix length (min 3) [%d]: ", pl)
-		if sc.Scan() {
-			var n int
-			if cnt, _ := fmt.Sscanf(strings.TrimSpace(sc.Text()), "%d", &n); cnt == 1 && n >= 3 {
-				pl = n
-			}
-		}
-		cfg.PrefixLength = pl
 	}
 
 	idle := cfg.IdleTimeoutSeconds
@@ -124,6 +90,28 @@ func runInit(args []string) error {
 	}
 	if passphrase != confirm {
 		return fmt.Errorf("passwords do not match")
+	}
+
+	fmt.Print("Enable short password (type only the first N chars)? (y/N): ")
+	mode := "full"
+	if sc.Scan() {
+		answer := strings.TrimSpace(strings.ToLower(sc.Text()))
+		if answer == "y" || answer == "yes" {
+			mode = "prefix"
+		}
+	}
+	cfg.PasswordMode = mode
+
+	if mode == "prefix" {
+		pl := cfg.PrefixLength
+		fmt.Printf("Number of prefix characters (min 3) [%d]: ", pl)
+		if sc.Scan() {
+			var n int
+			if cnt, _ := fmt.Sscanf(strings.TrimSpace(sc.Text()), "%d", &n); cnt == 1 && n >= 3 {
+				pl = n
+			}
+		}
+		cfg.PrefixLength = pl
 	}
 
 	_, statErr := os.Stat(cfg.ConfigPath)
