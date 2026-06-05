@@ -144,6 +144,9 @@ func runServe() {
 	srv := server.New(cfg, webFS(), assemblePassphrase)
 
 	if *keyFileFlag != "" {
+		if *bindFlag != "127.0.0.1" && *bindFlag != "localhost" && *bindFlag != "::1" {
+			log.Printf("WARNING: --key-file disables authentication; binding to %s exposes the server to the network with no login required", *bindFlag)
+		}
 		raw, err := os.ReadFile(*keyFileFlag)
 		if err != nil {
 			log.Fatalf("read key file %s: %v", *keyFileFlag, err)
