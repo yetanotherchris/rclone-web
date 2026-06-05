@@ -1,0 +1,125 @@
+# rclone-web
+
+A web frontend for [rclone](https://rclone.org/) that lets you manage and run rclone jobs from your browser. Job definitions and cloud-provider credentials are stored in a single [age](https://age-encryption.org/)-encrypted YAML file, and the server locks itself — zeroing the passphrase from memory — after an idle timeout.
+
+<img alt="rclone-web dashboard" src="docs/screenshots/screenshot-1.png" width="70%" />
+
+## Installation
+
+**Homebrew (macOS/Linux)**
+```bash
+brew tap yetanotherchris/rclone-web https://github.com/yetanotherchris/rclone-web
+brew install rclone-web
+```
+
+**Scoop (Windows)**
+```powershell
+scoop bucket add rclone-web https://github.com/yetanotherchris/rclone-web
+scoop install rclone-web
+```
+
+rclone-web runs `rclone` as a subprocess, so make sure [rclone](https://rclone.org/downloads/) is installed and on your `PATH` (or point at it with `--rclone-path`).
+
+## Quick Start
+
+Run once to create the encrypted config and set your password:
+
+```
+rclone-web init
+```
+
+Then launch the server (it opens your browser automatically):
+
+```
+rclone-web
+```
+
+## Setup
+
+### Config file
+
+rclone-web keeps exactly one persisted file: an age-encrypted YAML config at
+`~/.config/rcloneweb/rcloneweb.yml.age` (override with `--config`). It holds your
+job definitions and provider credentials. It is **not** an rclone native config —
+credentials are passed to rclone as environment variables at run time. Every other
+setting is a command-line flag; there is no plaintext config file.
+
+### Password storage
+
+rclone-web never stores your full password. During `init` you can enable
+*short-password* mode and choose how many leading characters you will type at each
+unlock (the *prefix*, default 4). The remainder (the *suffix*) is saved to the
+credential store:
+
+- **Windows** — the OS Credential Manager.
+- **macOS / Linux** — currently a fallback `chmod 600` file under
+  `~/.config/rclone-web/creds/` (a native Keychain / libsecret backend is not yet
+  implemented).
+
+At unlock you type only the prefix; the server fetches the suffix, combines them in
+memory to decrypt the config, and zeros the passphrase when the session locks. An
+attacker who obtains only the stored suffix still can't decrypt the config without
+the prefix you keep in your head. If no stored suffix exists, the full password is
+used as typed.
+
+### Idle timeout
+
+After a configurable period of inactivity (default 300 s) the server locks and
+zeros the passphrase from memory; you unlock again from the browser. Use the lock
+button in the UI to lock immediately.
+
+### Key-file mode (daemon)
+
+Pass `--key-file /path/to/file` and the server reads the passphrase from that file
+at startup, auto-unlocks, and never shows the unlock screen or opens a browser. The
+idle timeout and lock button have no effect. This is intended for service/daemon
+use.
+
+> **Warning:** key-file mode disables authentication. Keep the default
+> `127.0.0.1` bind; binding to a public address exposes the server with no login.
+
+### Serve flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--config` | `~/.config/rcloneweb/rcloneweb.yml.age` | Path to age-encrypted config |
+| `--port` | `8088` (random free port if in use; `0` = always random) | HTTP port |
+| `--bind` | `127.0.0.1` | Bind address |
+| `--idle-timeout` | `300` | Idle timeout in seconds (ignored with `--key-file`) |
+| `--rclone-path` | `rclone` | Path to the rclone binary |
+| `--key-file` | *(none)* | Path to a file containing the passphrase (enables key-file mode) |
+
+## Building from Source
+
+Requires Go 1.25+.
+
+```bash
+git clone https://github.com/yetanotherchris/rclone-web
+cd rclone-web
+go build -o rclone-web .
+```
+
+The browser UI is built from ES modules under `web/js/` (bundled by esbuild into
+`web/app.generated.js` via `go generate ./...`) plus Tailwind CSS
+(`web/app.css`). Both generated artifacts are committed, so a plain `go build`
+works without any front-end toolchain.
+
+### Using Task
+
+If you have [Task](https://taskfile.dev) installed:
+
+| Command | Description |
+|---|---|
+| `task build` | Compile Tailwind CSS then build the binary |
+| `task css` | Regenerate `web/app.css` only |
+| `task dev` | Watch CSS and run the server on port 9090 |
+| `task test` | Run `go test ./...` |
+| `task release` | Cross-compile release binaries into `dist/` |
+| `task install-tailwind` | Download the standalone Tailwind CLI into `.tools/` |
+
+## Releases
+
+Pushing a `vX.Y.Z` tag triggers the [Build and Release workflow](.github/workflows/build-release.yml),
+which cross-compiles binaries for Linux and macOS (amd64/arm64) and Windows
+(amd64), publishes a GitHub Release, and updates the Scoop manifest
+(`rclone-web.json`) and Homebrew formula (`Formula/rclone-web.rb`) in this repo.
