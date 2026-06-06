@@ -71,7 +71,7 @@
       </div>
     </div>
     <div id="lock-prefix-mode" class="hidden">
-      <label class="mb-1 block text-sm font-medium text-slate-700">Password prefix</label>
+      <label class="mb-1 block text-sm font-semibold text-slate-700">Password prefix</label>
       <p class="mb-2 text-xs text-slate-500">Type the first <span id="prefix-len" class="font-semibold">4</span> characters. The rest is read from the credential store.</p>
       <div class="flex items-center gap-2">
         <input type="password" id="prefix-input" maxlength="4" autocomplete="new-password" class="w-24 rounded-lg border border-slate-300 px-3 py-2 text-center tracking-widest focus:border-brand-500 focus:outline-none" />
@@ -79,7 +79,7 @@
       </div>
     </div>
     <div id="lock-full-mode">
-      <label class="mb-1 block text-sm font-medium text-slate-700">Passphrase</label>
+      <label class="mb-1 block text-sm font-semibold text-slate-700">Passphrase</label>
       <input type="password" id="full-input" autocomplete="new-password" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none" />
     </div>
     <p id="lock-error" class="mt-2 text-xs text-rose-600 hidden"></p>
@@ -184,11 +184,11 @@
             <div id="tab-details" class="job-tab">
               <div class="grid grid-cols-2 gap-5">
                 <div class="col-span-2">
-                  <label class="mb-1 block text-sm font-medium">Name</label>
+                  <label class="mb-1 block text-sm font-semibold">Name</label>
                   <input id="f-name" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none" />
                 </div>
                 <div>
-                  <label class="mb-1 block text-sm font-medium">Command</label>
+                  <label class="mb-1 block text-sm font-semibold">Command</label>
                   <select id="f-cmd" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none">
                     <option>copy</option><option>sync</option><option>move</option><option>check</option><option>lsf</option>
                   </select>
@@ -199,20 +199,20 @@
                   </label>
                 </div>
                 <div>
-                  <label class="mb-1 block text-sm font-medium">Source provider</label>
+                  <label class="mb-1 block text-sm font-semibold">Source provider</label>
                   <select id="f-sprov" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none"></select>
                 </div>
                 <div>
-                  <label class="mb-1 block text-sm font-medium">Source path</label>
+                  <label class="mb-1 block text-sm font-semibold">Source path</label>
                   <input id="f-spath" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none" />
                   <p class="mt-1 text-xs text-slate-400">Can be a file or a folder. A folder's contents are copied, not the folder itself.</p>
                 </div>
                 <div id="dest-prov-field">
-                  <label class="mb-1 block text-sm font-medium">Destination provider</label>
+                  <label class="mb-1 block text-sm font-semibold">Destination provider</label>
                   <select id="f-dprov" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none"></select>
                 </div>
                 <div id="dest-path-field">
-                  <label class="mb-1 block text-sm font-medium">Destination path</label>
+                  <label class="mb-1 block text-sm font-semibold">Destination path</label>
                   <input id="f-dpath" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none" />
                   <p class="mt-1 text-xs text-slate-400">Always treated as a folder. A trailing name (e.g. "bucketname/readme.md") creates a folder of that name — copy/sync/move can't rename a file.</p>
                 </div>
@@ -228,7 +228,7 @@
               <div class="flex flex-col gap-6 lg:flex-row">
                 <div class="flex-1 space-y-5">
                   <div>
-                    <label class="mb-1 block text-sm font-medium">Extra args <span class="font-normal text-slate-400">(space-separated; no quoted spaces in v1)</span></label>
+                    <label class="mb-1 block text-sm font-semibold">Extra args <span class="font-normal text-slate-400">(space-separated; no quoted spaces in v1)</span></label>
                     <input id="f-extra" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none" placeholder="--exclude *.tmp" />
                   </div>
                 </div>
@@ -299,11 +299,11 @@
             <div id="ptab-details" class="prov-tab">
               <div class="grid grid-cols-2 gap-5">
                 <div>
-                  <label class="mb-1 block text-sm font-medium">Name</label>
+                  <label class="mb-1 block text-sm font-semibold">Name</label>
                   <input id="p-name" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono focus:border-brand-500 focus:outline-none" />
                 </div>
                 <div>
-                  <label class="mb-1 block text-sm font-medium">Type <span class="font-normal text-slate-400">(from rclone config providers)</span></label>
+                  <label class="mb-1 block text-sm font-semibold">Type <span class="font-normal text-slate-400">(from rclone config providers)</span></label>
                   <select id="p-type" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none">
                     <option value="b2">b2</option>
                     <option value="local">local</option>

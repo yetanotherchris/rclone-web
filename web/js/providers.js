@@ -184,7 +184,7 @@ function backendFieldHTML(opt, prefix) {
     const opts = opt.Examples.map(ex => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join('');
     input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
   } else if (opt.Type === 'bool') {
-    input = `<label class="flex items-center gap-2 py-2 text-sm"><input type="checkbox" id="pf-${esc(key)}" class="rounded"> Enabled</label>`;
+    input = `<div class="py-1"><input type="checkbox" id="pf-${esc(key)}" class="rounded"></div>`;
   } else {
     const t = isPassword ? 'password' : (opt.Type === 'int' ? 'number' : 'text');
     const def = opt.DefaultStr !== undefined ? opt.DefaultStr : (opt.Default !== undefined ? String(opt.Default) : '');
@@ -193,7 +193,7 @@ function backendFieldHTML(opt, prefix) {
 
   const hintHTML = hint ? `<p class="mt-1 text-xs text-slate-500">${esc(hint)}</p>` : '';
   return `<div>
-    <label class="mb-1 block text-sm font-medium">${esc(label)}${tooltipHtml}</label>${input}${hintHTML}</div>`;
+    <label class="mb-1 block text-sm font-semibold">${esc(label)}${tooltipHtml}</label>${input}${hintHTML}</div>`;
 }
 
 export function addCustomKey() {
