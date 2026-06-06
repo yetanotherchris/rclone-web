@@ -1,6 +1,7 @@
 /* rclone-web — queues list, queue form, queue run detail, queue logs. */
 'use strict';
 
+import Sortable from 'sortablejs';
 import { state } from './state.js';
 import { api } from './api.js';
 import { esc, showError, clearError } from './util.js';
@@ -82,19 +83,16 @@ export function openQueueForm(queueId) {
   showScreen('queueform');
 }
 
-// Inject a style rule once so cursor: move persists during HTML5 drag (browsers
-// ignore JS cursor changes mid-drag without !important on the document itself).
-if (!document.getElementById('rw-drag-style')) {
-  const s = document.createElement('style');
-  s.id = 'rw-drag-style';
-  s.textContent = 'body.rw-dragging, body.rw-dragging * { cursor: move !important; }';
-  document.head.appendChild(s);
-}
+let _jobListSortable = null;
 
 function renderQueueJobList(jobIds) {
   const list = document.getElementById('qf-jobs-list');
   list.innerHTML = '';
-  let dragSrcIdx = null;
+
+  if (_jobListSortable) {
+    _jobListSortable.destroy();
+    _jobListSortable = null;
+  }
 
   jobIds.forEach((jid, idx) => {
     const job = state.jobs.find(j => j.id === jid);
@@ -102,49 +100,22 @@ function renderQueueJobList(jobIds) {
     const item = document.createElement('div');
     item.className = 'flex items-center gap-2 py-1.5 border-b border-slate-100 cursor-move select-none';
     item.dataset.jobId = jid;
-    item.draggable = true;
     item.innerHTML = `
       <span class="text-slate-300 text-base leading-none" title="Drag to reorder">⠿</span>
       <span class="flex-1 text-sm">${esc(name)}</span>
       <button type="button" class="qf-remove-btn text-rose-400 hover:text-rose-600 px-1" data-idx="${idx}" title="Remove">×</button>`;
-
-    item.addEventListener('dragstart', e => {
-      dragSrcIdx = idx;
-      e.dataTransfer.effectAllowed = 'move';
-      setTimeout(() => {
-        item.classList.add('bg-slate-200');
-        document.body.classList.add('rw-dragging');
-      }, 0);
-    });
-    item.addEventListener('dragend', () => {
-      item.classList.remove('bg-slate-200');
-      document.body.classList.remove('rw-dragging');
-      list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over', 'border-t-2', 'border-brand-400'));
-    });
-    item.addEventListener('dragover', e => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over', 'border-t-2', 'border-brand-400'));
-      if (dragSrcIdx !== idx) {
-        item.classList.add('drag-over', 'border-t-2', 'border-brand-400');
-      }
-    });
-    item.addEventListener('drop', e => {
-      e.preventDefault();
-      if (dragSrcIdx === null || dragSrcIdx === idx) return;
-      const ids = getQueueJobIds();
-      const [moved] = ids.splice(dragSrcIdx, 1);
-      ids.splice(idx, 0, moved);
-      dragSrcIdx = null;
-      renderQueueJobList(ids);
-    });
-
     list.appendChild(item);
   });
 
   list.querySelectorAll('.qf-remove-btn').forEach(btn =>
     btn.addEventListener('click', () => removeQueueJob(Number(btn.dataset.idx)))
   );
+
+  _jobListSortable = new Sortable(list, {
+    animation: 150,
+    ghostClass: 'bg-slate-200',
+    chosenClass: 'opacity-50',
+  });
 }
 
 function getQueueJobIds() {
