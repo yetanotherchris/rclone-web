@@ -9,6 +9,7 @@ export const state = {
   csrfToken: '',
   providers: [],       // [{name, type, ...extra}]
   jobs: [],            // [{id, name, command, ...}]
+  queues: [],          // [{id, name, job_ids, on_failure, lastQueueRun}]
   backends: [],        // rclone config providers JSON
   currentRun: null,    // {id, jobId, dryRun, ...}
   pollTimer: null,
@@ -17,4 +18,8 @@ export const state = {
   pendingRunDryRun: false,
   shortLen: 0,         // 0 = full-passphrase mode; >0 = short-password prefix length
   editingProvName: null,
+  currentQueueRun: null,  // full queue run object from API
+  queuePollTimer: null,
+  queueLogRunId: null,    // runId of job currently shown in queuelogs screen
+  editingQueueId: null,
 };

@@ -26,6 +26,7 @@ type Server struct {
 	webFS      fs.FS
 	sessions   *session.Store
 	runs       *runner.Manager
+	queueRuns  *runner.QueueManager
 	src        *remotes.EnvVarSource
 	assemblePassphrase func(prefix string) (string, error)
 
@@ -49,11 +50,13 @@ func New(
 	assemblePassphrase func(prefix string) (string, error),
 	shortLen int,
 ) *Server {
+	mgr := runner.NewManager()
 	s := &Server{
 		cfg:                cfg,
 		webFS:              webFS,
 		src:                &remotes.EnvVarSource{},
-		runs:               runner.NewManager(),
+		runs:               mgr,
+		queueRuns:          runner.NewQueueManager(mgr),
 		assemblePassphrase: assemblePassphrase,
 		bindAddr:           cfg.BindAddr,
 		port:               cfg.Port,
@@ -187,6 +190,16 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/providers/{name}", s.auth(s.handleGetProvider))
 	mux.HandleFunc("PUT /api/providers/{name}", s.csrf(s.handleUpdateProvider))
 	mux.HandleFunc("DELETE /api/providers/{name}", s.csrf(s.handleDeleteProvider))
+
+	mux.HandleFunc("GET /api/queues", s.auth(s.handleListQueues))
+	mux.HandleFunc("POST /api/queues", s.csrf(s.handleCreateQueue))
+	mux.HandleFunc("GET /api/queues/{id}", s.auth(s.handleGetQueue))
+	mux.HandleFunc("PUT /api/queues/{id}", s.csrf(s.handleUpdateQueue))
+	mux.HandleFunc("DELETE /api/queues/{id}", s.csrf(s.handleDeleteQueue))
+	mux.HandleFunc("POST /api/queues/{id}/run", s.csrf(s.handleRunQueue))
+
+	mux.HandleFunc("GET /api/queue-runs/{id}", s.auth(s.handleGetQueueRun))
+	mux.HandleFunc("POST /api/queue-runs/{id}/stop", s.csrf(s.handleStopQueueRun))
 
 	mux.HandleFunc("GET /api/backends", s.auth(s.handleBackends))
 }
@@ -667,6 +680,280 @@ func (s *Server) handleDeleteProvider(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonOK(w, map[string]string{"deleted": name})
+}
+
+// ---- Queues ----
+
+type queueWithRun struct {
+	config.Queue
+	LastQueueRun *queueRunSummary `json:"lastQueueRun,omitempty"`
+}
+
+type queueRunSummary struct {
+	ID     string           `json:"id"`
+	Status runner.RunStatus `json:"status"`
+}
+
+func (s *Server) queueWithLastRun(q config.Queue) queueWithRun {
+	qwr := queueWithRun{Queue: q}
+	if latest := s.queueRuns.LatestForQueue(q.ID); latest != nil {
+		snap := latest.Snapshot()
+		qwr.LastQueueRun = &queueRunSummary{ID: snap.ID, Status: snap.Status}
+	}
+	return qwr
+}
+
+func (s *Server) handleListQueues(w http.ResponseWriter, r *http.Request) {
+	s.mu.RLock()
+	cfg := s.rcCfg
+	s.mu.RUnlock()
+	if cfg == nil {
+		jsonErr(w, "locked", http.StatusUnauthorized)
+		return
+	}
+	result := make([]queueWithRun, 0, len(cfg.Rclone.Queues))
+	for _, q := range cfg.Rclone.Queues {
+		result = append(result, s.queueWithLastRun(q))
+	}
+	jsonOK(w, result)
+}
+
+func (s *Server) handleGetQueue(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	s.mu.RLock()
+	cfg := s.rcCfg
+	s.mu.RUnlock()
+	if cfg == nil {
+		jsonErr(w, "locked", http.StatusUnauthorized)
+		return
+	}
+	for _, q := range cfg.Rclone.Queues {
+		if q.ID == id {
+			jsonOK(w, s.queueWithLastRun(q))
+			return
+		}
+	}
+	jsonErr(w, "queue not found", http.StatusNotFound)
+}
+
+func (s *Server) handleCreateQueue(w http.ResponseWriter, r *http.Request) {
+	var q config.Queue
+	if err := json.NewDecoder(r.Body).Decode(&q); err != nil {
+		jsonErr(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	if q.Name == "" {
+		jsonErr(w, "name is required", http.StatusBadRequest)
+		return
+	}
+	if q.ID == "" {
+		q.ID = fmt.Sprintf("q%x", time.Now().UnixNano())
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.rcCfg == nil {
+		jsonErr(w, "locked", http.StatusUnauthorized)
+		return
+	}
+	s.rcCfg.Rclone.Queues = append(s.rcCfg.Rclone.Queues, q)
+	if err := s.saveConfig(); err != nil {
+		jsonErr(w, "save error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	jsonOK(w, q)
+}
+
+func (s *Server) handleUpdateQueue(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var updated config.Queue
+	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
+		jsonErr(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	updated.ID = id
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.rcCfg == nil {
+		jsonErr(w, "locked", http.StatusUnauthorized)
+		return
+	}
+	for i, q := range s.rcCfg.Rclone.Queues {
+		if q.ID == id {
+			s.rcCfg.Rclone.Queues[i] = updated
+			if err := s.saveConfig(); err != nil {
+				jsonErr(w, "save error: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			jsonOK(w, updated)
+			return
+		}
+	}
+	jsonErr(w, "queue not found", http.StatusNotFound)
+}
+
+func (s *Server) handleDeleteQueue(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.rcCfg == nil {
+		jsonErr(w, "locked", http.StatusUnauthorized)
+		return
+	}
+	queues := s.rcCfg.Rclone.Queues
+	for i, q := range queues {
+		if q.ID == id {
+			s.rcCfg.Rclone.Queues = append(queues[:i], queues[i+1:]...)
+			if err := s.saveConfig(); err != nil {
+				jsonErr(w, "save error: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			jsonOK(w, map[string]string{"deleted": id})
+			return
+		}
+	}
+	jsonErr(w, "queue not found", http.StatusNotFound)
+}
+
+func (s *Server) handleRunQueue(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	s.mu.RLock()
+	cfg := s.rcCfg
+	s.mu.RUnlock()
+	if cfg == nil {
+		jsonErr(w, "locked", http.StatusUnauthorized)
+		return
+	}
+
+	var queue *config.Queue
+	for i := range cfg.Rclone.Queues {
+		if cfg.Rclone.Queues[i].ID == id {
+			queue = &cfg.Rclone.Queues[i]
+			break
+		}
+	}
+	if queue == nil {
+		jsonErr(w, "queue not found", http.StatusNotFound)
+		return
+	}
+
+	// Validate all referenced jobs exist.
+	jobMap := make(map[string]*config.Job, len(cfg.Rclone.Jobs))
+	for i := range cfg.Rclone.Jobs {
+		jobMap[cfg.Rclone.Jobs[i].ID] = &cfg.Rclone.Jobs[i]
+	}
+	var missing []string
+	for _, jid := range queue.JobIDs {
+		if _, ok := jobMap[jid]; !ok {
+			missing = append(missing, jid)
+		}
+	}
+	if len(missing) > 0 {
+		jsonErr(w, fmt.Sprintf("missing job IDs: %v", missing), http.StatusUnprocessableEntity)
+		return
+	}
+
+	// Build job slots with names.
+	slots := make([]runner.QueueJobResult, len(queue.JobIDs))
+	for i, jid := range queue.JobIDs {
+		slots[i] = runner.QueueJobResult{
+			JobID:   jid,
+			JobName: jobMap[jid].DisplayName(),
+		}
+	}
+
+	cfgSnapshot := cfg
+	onFailure := queue.OnFailure
+	queueID := queue.ID
+	queueName := queue.Name
+
+	startJobFn := func(jobID, jobName string) (*runner.Run, error) {
+		var job *config.Job
+		for i := range cfgSnapshot.Rclone.Jobs {
+			if cfgSnapshot.Rclone.Jobs[i].ID == jobID {
+				job = &cfgSnapshot.Rclone.Jobs[i]
+				break
+			}
+		}
+		if job == nil {
+			return nil, fmt.Errorf("job %q not found", jobID)
+		}
+
+		argv, err := remotes.AssembleArgv(s.src, cfgSnapshot, job, false)
+		if err != nil {
+			return nil, fmt.Errorf("assemble argv: %w", err)
+		}
+		cmdline := remotes.RedactedCmdline(s.cfg.RclonePath, argv)
+		extraEnv := s.src.Env(cfgSnapshot.Rclone.Providers)
+
+		return s.runs.Start(
+			s.cfg.RclonePath,
+			argv,
+			cmdline,
+			jobID,
+			jobName,
+			extraEnv,
+			os.Environ(),
+			func(run *runner.Run) {
+				s.mu.Lock()
+				if s.rcCfg != nil && !run.FinishedAt.IsZero() {
+					for i := range s.rcCfg.Rclone.Jobs {
+						if s.rcCfg.Rclone.Jobs[i].ID == run.JobID {
+							t := run.FinishedAt
+							s.rcCfg.Rclone.Jobs[i].LastRunAt = &t
+							s.rcCfg.Rclone.Jobs[i].LastRunStatus = string(run.Status)
+							_ = s.saveConfig()
+							break
+						}
+					}
+				}
+				s.mu.Unlock()
+			},
+		)
+	}
+
+	queueRun, err := s.queueRuns.Start(
+		queueID,
+		queueName,
+		slots,
+		onFailure,
+		startJobFn,
+		func() { s.sessions.SetRunActive(false) },
+	)
+	if err != nil {
+		if strings.Contains(err.Error(), "conflict") {
+			jsonErr(w, "queue is already running", http.StatusConflict)
+			return
+		}
+		jsonErr(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	s.sessions.SetRunActive(true)
+
+	jsonOK(w, map[string]string{"queueRunId": queueRun.ID})
+}
+
+func (s *Server) handleGetQueueRun(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	qr, ok := s.queueRuns.Get(id)
+	if !ok {
+		jsonErr(w, "queue run not found", http.StatusNotFound)
+		return
+	}
+	snap := qr.Snapshot()
+	jsonOK(w, snap)
+}
+
+func (s *Server) handleStopQueueRun(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := s.queueRuns.Stop(id); err != nil {
+		jsonErr(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	jsonOK(w, map[string]string{"status": "canceling"})
 }
 
 // ---- Backends (rclone config providers) ----
