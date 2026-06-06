@@ -82,6 +82,15 @@ export function openQueueForm(queueId) {
   showScreen('queueform');
 }
 
+// Inject a style rule once so cursor: move persists during HTML5 drag (browsers
+// ignore JS cursor changes mid-drag without !important on the document itself).
+if (!document.getElementById('rw-drag-style')) {
+  const s = document.createElement('style');
+  s.id = 'rw-drag-style';
+  s.textContent = 'body.rw-dragging, body.rw-dragging * { cursor: move !important; }';
+  document.head.appendChild(s);
+}
+
 function renderQueueJobList(jobIds) {
   const list = document.getElementById('qf-jobs-list');
   list.innerHTML = '';
@@ -102,11 +111,14 @@ function renderQueueJobList(jobIds) {
     item.addEventListener('dragstart', e => {
       dragSrcIdx = idx;
       e.dataTransfer.effectAllowed = 'move';
-      setTimeout(() => { item.classList.add('opacity-40'); document.body.style.cursor = 'move'; }, 0);
+      setTimeout(() => {
+        item.classList.add('bg-slate-200');
+        document.body.classList.add('rw-dragging');
+      }, 0);
     });
     item.addEventListener('dragend', () => {
-      item.classList.remove('opacity-40');
-      document.body.style.cursor = '';
+      item.classList.remove('bg-slate-200');
+      document.body.classList.remove('rw-dragging');
       list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over', 'border-t-2', 'border-brand-400'));
     });
     item.addEventListener('dragover', e => {
