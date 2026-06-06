@@ -425,7 +425,7 @@
       const job = state.jobs.find((j) => j.id === jid);
       const name = job ? job.name : jid;
       const item = document.createElement("div");
-      item.className = "flex items-center gap-2 py-1.5 border-b border-slate-100 cursor-grab select-none";
+      item.className = "flex items-center gap-2 py-1.5 border-b border-slate-100 cursor-move select-none";
       item.dataset.jobId = jid;
       item.draggable = true;
       item.innerHTML = `
@@ -435,10 +435,14 @@
       item.addEventListener("dragstart", (e) => {
         dragSrcIdx = idx;
         e.dataTransfer.effectAllowed = "move";
-        setTimeout(() => item.classList.add("opacity-40"), 0);
+        setTimeout(() => {
+          item.classList.add("opacity-40");
+          document.body.style.cursor = "move";
+        }, 0);
       });
       item.addEventListener("dragend", () => {
         item.classList.remove("opacity-40");
+        document.body.style.cursor = "";
         list.querySelectorAll(".drag-over").forEach((el) => el.classList.remove("drag-over", "border-t-2", "border-brand-400"));
       });
       item.addEventListener("dragover", (e) => {
