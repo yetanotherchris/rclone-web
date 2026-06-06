@@ -24,6 +24,12 @@ type output struct {
 	// CommandJobs is one local job per rclone command (copy/sync/move/check/lsf).
 	CommandJobs []cmdJob `json:"commandJobs"`
 
+	// Queue fixture.
+	QueueID   string `json:"queueId"`
+	QueueName string `json:"queueName"`
+	QueueDst1 string `json:"queueDst1"`
+	QueueDst2 string `json:"queueDst2"`
+
 	// B2 fixture (only populated when RCLONEWEB_E2E_B2_* env is set).
 	CloudEnabled bool   `json:"cloudEnabled"`
 	B2SrcBucket  string `json:"b2SrcBucket,omitempty"`
@@ -152,6 +158,47 @@ func main() {
 	addCmdJob("lsf-test", "Command: lsf", "lsf",
 		map[string]string{"l1.txt": "a\n", "l2.txt": "b\n"},
 		nil, "", false, true)
+
+	// Add a queue with two local copy jobs so queue e2e tests can run hermetically.
+	qDst1 := filepath.Join(tmpDir, "qdst1")
+	qDst2 := filepath.Join(tmpDir, "qdst2")
+	if err := os.MkdirAll(qDst1, 0755); err != nil {
+		log.Fatal(err)
+	}
+	if err := os.MkdirAll(qDst2, 0755); err != nil {
+		log.Fatal(err)
+	}
+	cfg.Rclone.Jobs = append(cfg.Rclone.Jobs,
+		config.Job{
+			ID:             "qjob1",
+			Name:           "Queue Copy 1",
+			SourceProvider: "local",
+			SourcePath:     srcDir,
+			DestProvider:   "local",
+			DestPath:       qDst1,
+			Command:        "copy",
+		},
+		config.Job{
+			ID:             "qjob2",
+			Name:           "Queue Copy 2",
+			SourceProvider: "local",
+			SourcePath:     srcDir,
+			DestProvider:   "local",
+			DestPath:       qDst2,
+			Command:        "copy",
+		},
+	)
+	cfg.Rclone.Queues = []config.Queue{
+		{
+			ID:     "q1",
+			Name:   "E2E Queue",
+			JobIDs: []string{"qjob1", "qjob2"},
+		},
+	}
+	out.QueueID = "q1"
+	out.QueueName = "E2E Queue"
+	out.QueueDst1 = qDst1
+	out.QueueDst2 = qDst2
 
 	// Optionally add a B2 bucket-to-bucket job. One B2 account backs both
 	// buckets, so a single "b2" provider is used with two bucket paths.

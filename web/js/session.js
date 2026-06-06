@@ -65,19 +65,22 @@ export async function doLock() {
   state.csrfToken = '';
   state.jobs = [];
   state.providers = [];
+  state.queues = [];
   stopPoll();
   showLock();
 }
 
 async function loadInitialData() {
-  [state.jobs, state.providers, state.backends] = await Promise.all([
+  [state.jobs, state.providers, state.backends, state.queues] = await Promise.all([
     api('GET', '/api/jobs'),
     api('GET', '/api/providers'),
     api('GET', '/api/backends'),
+    api('GET', '/api/queues'),
   ]);
   if (!state.jobs) state.jobs = [];
   if (!state.providers) state.providers = [];
   if (!state.backends) state.backends = [];
+  if (!state.queues) state.queues = [];
   populateBackendTypeSelect();
   startIdleCountdown();
 }

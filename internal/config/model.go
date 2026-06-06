@@ -16,6 +16,14 @@ type RcloneSection struct {
 	Flags     string              `yaml:"flags,omitempty"`
 	Providers map[string]Provider `yaml:"providers"`
 	Jobs      []Job               `yaml:"jobs"`
+	Queues    []Queue             `yaml:"queues,omitempty"`
+}
+
+type Queue struct {
+	ID        string   `yaml:"id,omitempty" json:"id,omitempty"`
+	Name      string   `yaml:"name,omitempty" json:"name,omitempty"`
+	JobIDs    []string `yaml:"job_ids,omitempty" json:"job_ids,omitempty"`
+	OnFailure string   `yaml:"on_failure,omitempty" json:"on_failure,omitempty"`
 }
 
 type Provider struct {
@@ -63,6 +71,7 @@ func EmptyRcloneConfig() *RcloneConfig {
 		Rclone: RcloneSection{
 			Providers: map[string]Provider{},
 			Jobs:      []Job{},
+			Queues:    []Queue{},
 		},
 	}
 }
@@ -81,6 +90,14 @@ func ParseConfig(data []byte) (*RcloneConfig, error) {
 	for i := range cfg.Rclone.Jobs {
 		if cfg.Rclone.Jobs[i].ID == "" {
 			cfg.Rclone.Jobs[i].ID = fmt.Sprintf("j%d", i)
+		}
+	}
+	if cfg.Rclone.Queues == nil {
+		cfg.Rclone.Queues = []Queue{}
+	}
+	for i := range cfg.Rclone.Queues {
+		if cfg.Rclone.Queues[i].ID == "" {
+			cfg.Rclone.Queues[i].ID = fmt.Sprintf("q%d", i)
 		}
 	}
 	return &cfg, nil

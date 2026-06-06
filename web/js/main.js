@@ -15,6 +15,10 @@ import {
   saveProvider, openProvForm, addCustomKey, renderProviderFields, switchProvTab,
 } from './providers.js';
 import { proceedWithRun, stopRun } from './runs.js';
+import {
+  saveQueue, openQueueForm, addQueueJob, populateQueueJobSelect,
+  stopQueueRun, onQueueLogsJobChange,
+} from './queues.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // Nav buttons
@@ -86,6 +90,16 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('stop-btn').addEventListener('click', stopRun);
   document.getElementById('confirm-yes').addEventListener('click', proceedWithRun);
   document.getElementById('confirm-no').addEventListener('click', () => showScreen('dashboard'));
+
+  // Queue screens
+  document.getElementById('new-queue-btn').addEventListener('click', () => {
+    populateQueueJobSelect();
+    openQueueForm(null);
+  });
+  document.getElementById('save-queue-btn').addEventListener('click', saveQueue);
+  document.getElementById('qf-add-job-btn').addEventListener('click', addQueueJob);
+  document.getElementById('queuerun-stop-btn').addEventListener('click', stopQueueRun);
+  document.getElementById('queuelogs-job-select').addEventListener('change', onQueueLogsJobChange);
 
   // Provider form type change
   document.getElementById('p-type').addEventListener('change', renderProviderFields);

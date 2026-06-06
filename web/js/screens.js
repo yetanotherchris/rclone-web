@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { renderDashboard } from './dashboard.js';
 import { renderJobsList } from './jobs.js';
 import { renderProvidersList } from './providers.js';
+import { renderQueuesList } from './queues.js';
 
 export function configureLockUI(n) {
   const prefixMode = n > 0;
@@ -38,7 +39,10 @@ export function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s =>
     s.classList.toggle('hidden', s.dataset.screen !== name)
   );
-  const navTarget = { jobform: 'jobs', provform: 'providers', run: 'dashboard' }[name] || name;
+  const navTarget = {
+    jobform: 'jobs', provform: 'providers', run: 'dashboard',
+    queueform: 'queues', queuerun: 'queues', queuelogs: 'queues',
+  }[name] || name;
   document.querySelectorAll('.nav-btn').forEach(b => {
     const active = b.dataset.nav === navTarget;
     b.classList.toggle('bg-brand-50', active);
@@ -49,4 +53,5 @@ export function showScreen(name) {
   if (name === 'dashboard') renderDashboard();
   if (name === 'jobs') renderJobsList();
   if (name === 'providers') renderProvidersList();
+  if (name === 'queues') renderQueuesList();
 }
