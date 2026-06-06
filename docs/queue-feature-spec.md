@@ -210,23 +210,24 @@ Layout:
 ┌─────────────────────────────────────────────────┐
 │  Nightly Backup                [Stop] [● running]│
 │                                                   │
-│  ┌──────────┬───────────┬───────────┐            │
-│  │ Archive  │ Sync Music│Verify Hash│            │
-│  │ ✓ success│ ⟳ running │ — pending │            │
-│  └──────────┴───────────┴───────────┘            │
+│  View logs for: [ Sync Music ✓ ▾ ]               │
 │                                                   │
-│  [ log output for selected tab ]                  │
+│  [ log output for selected job ]                  │
 │  ...                                              │
 └─────────────────────────────────────────────────┘
 ```
 
-**Tabs:** One tab per job in the queue. Each tab shows:
-- Job name (truncated if needed)
-- Status icon: ⟳ running · ✓ success · ✗ failed · — pending · ⊘ canceled
+**Job selector:** A `<select>` dropdown listing each job in queue order. Each
+option shows the job name and its status icon:
+- ⟳ running · ✓ success · ✗ failed · — pending · ⊘ canceled
 
-**Selecting a tab** displays the log for that job's `Run` (polling
+The dropdown auto-advances to the currently running job as the queue progresses.
+Selecting a different option immediately switches the log panel to that job's
+output.
+
+**Selecting a job** displays the log for that job's `Run` (polling
 `/api/runs/{runId}/log?since=N` every 1 s while status is `running`, stopping
-when finished). Tabs for not-yet-started jobs show "Waiting…".
+when finished). Jobs not yet started show "Waiting…" in the log panel.
 
 **Header:**
 - Queue name
@@ -235,7 +236,7 @@ when finished). Tabs for not-yet-started jobs show "Waiting…".
 - Start time + elapsed / finish time
 
 **Polling:** While the queue run is `running`, the screen polls
-`GET /api/queue-runs/{id}` every 2 s to update tab statuses and detect
+`GET /api/queue-runs/{id}` every 2 s to update dropdown option labels and detect
 completion. On completion, polling stops.
 
 **"Not yet run" state:** If navigated to from View with no in-memory run, show a
