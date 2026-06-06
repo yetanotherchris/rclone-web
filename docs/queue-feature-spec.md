@@ -184,15 +184,18 @@ New item **Queues** added between Jobs and Providers.
 
 ### Queues list screen (`data-screen="queues"`)
 
-Table with columns: Name | Jobs (count) | On Failure | Last Run | Actions.
+Table with columns: Name | Jobs (count) | On Failure | Status | Actions.
 
-Actions per row: **View** · **Edit** · **Delete** · **Run**. No dry-run for queues.
+**Status cell** is the primary navigation affordance for run history:
+- No run yet → plain "—" (not interactive)
+- Currently running → **[⟳ running]** button → navigates to the active run screen
+- Completed → **[✓ success]** / **[✗ failed]** / **[⊘ canceled]** button → navigates to the last run screen
+
+Actions per row: **Edit** · **Delete** · **Run**. No dry-run for queues.
 The **Run** button is disabled (greyed out) while that queue has an active run;
 it re-enables when the run finishes or is stopped. Status is checked on page load
 and after each poll cycle.
 
-- **View** → navigates to the queue run screen for the latest in-memory run (or a
-  "not yet run" placeholder if none).
 - **Run** → `POST /api/queues/{id}/run`, then navigates to the queue run screen.
 
 ### Queue form screen (`data-screen="queueform"`)
@@ -207,7 +210,7 @@ Save → `POST /api/queues` (create) or `PUT /api/queues/{id}` (edit).
 
 ### Queue run screen (`data-screen="queuerun"`)
 
-This screen is reached by **View** or after clicking **Run**.
+This screen is reached by clicking the status button in the queues list or dashboard, or immediately after clicking **Run**.
 
 Layout:
 
@@ -262,18 +265,17 @@ Jobs
 └──────────────────────────────────────────────────────────┘
 
 Queues
-┌──────────────────────────────────────────────────────────┐
-│ Name             Jobs  Last Run         Actions           │
-│ Nightly Backup   3     ✓ 2 hours ago    [View] [Run]     │
-│ Weekly Archive   5     — never          [View] [Run]     │
-└──────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│ Name             Jobs  Status              Actions          │
+│ Nightly Backup   3     [⟳ running]         [Run (disabled)] │
+│ Weekly Archive   5     [✓ success]         [Run]            │
+│ Monthly Purge    2     —                   [Run]            │
+└────────────────────────────────────────────────────────────┘
 ```
 
-Columns: Name | Jobs (count) | Last Run (status badge + relative time, or "—
-never") | Actions.
+Columns: Name | Jobs (count) | Status | Actions.
 
-Actions:
-- **View** → queue run screen (latest in-memory run, or "not yet run" message)
+- **Status button** → navigates to the run screen for that queue's last (or active) run. Plain "—" when never run.
 - **Run** → `POST /api/queues/{id}/run`, then navigate to queue run screen. Disabled while that queue is actively running.
 
 No dry-run button for queues. The Queues section is only rendered if at least
