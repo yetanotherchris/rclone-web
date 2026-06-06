@@ -187,6 +187,9 @@ New item **Queues** added between Jobs and Providers.
 Table with columns: Name | Jobs (count) | On Failure | Last Run | Actions.
 
 Actions per row: **View** · **Edit** · **Delete** · **Run**. No dry-run for queues.
+The **Run** button is disabled (greyed out) while that queue has an active run;
+it re-enables when the run finishes or is stopped. Status is checked on page load
+and after each poll cycle.
 
 - **View** → navigates to the queue run screen for the latest in-memory run (or a
   "not yet run" placeholder if none).
@@ -271,7 +274,7 @@ never") | Actions.
 
 Actions:
 - **View** → queue run screen (latest in-memory run, or "not yet run" message)
-- **Run** → `POST /api/queues/{id}/run`, then navigate to queue run screen
+- **Run** → `POST /api/queues/{id}/run`, then navigate to queue run screen. Disabled while that queue is actively running.
 
 No dry-run button for queues. The Queues section is only rendered if at least
 one queue is defined.
