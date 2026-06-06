@@ -17,6 +17,8 @@ if (!document.getElementById('rw-dragula-style')) {
     '.gu-hide{display:none!important}',
     '.gu-unselectable{user-select:none!important}',
     '.gu-transit{opacity:.35;border:2px dashed #94a3b8!important;border-radius:4px}',
+    '.rw-drag-item{cursor:grab}',
+    '.rw-drag-item:active{cursor:grabbing}',
     '.rw-drag-active{background:#f1f5f9;border-radius:6px;transition:background .15s}',
     '.rw-drag-active .rw-drag-item:not(.gu-transit){opacity:.55;transition:opacity .1s}',
   ].join('');
@@ -114,7 +116,7 @@ function renderQueueJobList(jobIds) {
     const job = state.jobs.find(j => j.id === jid);
     const name = job ? job.name : jid;
     const item = document.createElement('div');
-    item.className = 'rw-drag-item flex items-center gap-2 py-1.5 border-b border-slate-100 cursor-grab select-none';
+    item.className = 'rw-drag-item flex items-center gap-2 py-1.5 border-b border-slate-100 select-none';
     item.dataset.jobId = jid;
     item.innerHTML = `
       <span class="text-slate-300 text-base leading-none" title="Drag to reorder">⠿</span>
