@@ -39,7 +39,7 @@ rclone-web:
       job_ids:
         - j0
         - j1
-      on_failure: stop      # "stop" (default) | "continue"
+      on_failure: continue  # "continue" (default) | "stop"
 ```
 
 ### Queue fields
@@ -49,7 +49,7 @@ rclone-web:
 | `id` | string | auto | Auto-assigned (`q0`, `q1`, …) if absent |
 | `name` | string | yes | Human-readable label |
 | `job_ids` | []string | yes | Ordered list of job IDs to run |
-| `on_failure` | string | no | `stop` (default) or `continue` |
+| `on_failure` | string | no | `continue` (default) or `stop` |
 
 `last_run_at` / `last_run_status` are **not** persisted for queues — the last run
 is held in memory only and lost on server restart, matching the design intent.
@@ -194,7 +194,7 @@ Actions per row: **View** · **Edit** · **Delete** · **Run**.
 
 Fields:
 - **Name** (text input)
-- **On Failure** (select: Stop on first failure / Continue on failure)
+- **On Failure** (select: Continue on failure (default) / Stop on first failure)
 - **Jobs** (ordered list with up ↑ / down ↓ buttons and a remove × button per job)
 - **Add job** (dropdown of all defined jobs, "+ Add" button appends to list)
 
