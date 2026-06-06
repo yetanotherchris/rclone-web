@@ -208,48 +208,82 @@ Fields:
 
 Save → `POST /api/queues` (create) or `PUT /api/queues/{id}` (edit).
 
-### Queue run screen (`data-screen="queuerun"`)
+### Queue run detail screen (`data-screen="queuerun"`)
 
-This screen is reached by clicking the status button in the queues list or dashboard, or immediately after clicking **Run**.
+Reached by clicking the status button in the queues list or dashboard, or
+immediately after clicking **Run**.
+
+Shows a summary table of all jobs in the queue run and their outcome. From here
+the user drills into per-job logs.
 
 Layout:
 
 ```
-┌─────────────────────────────────────────────────┐
-│  Nightly Backup                [Stop] [● running]│
-│                                                   │
-│  View logs for: [ Sync Music ✓ ▾ ]               │
-│                                                   │
-│  [ log output for selected job ]                  │
-│  ...                                              │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  Nightly Backup          [Stop]        [⟳ running]   │
+│  Started 14:02 · 1m 23s elapsed                      │
+│                                                       │
+│  Job               Status       Actions               │
+│  ─────────────────────────────────────────────       │
+│  Archive Photos    ✓ success    [View logs]           │
+│  Sync Music        ⟳ running   [View logs]           │
+│  Verify Hashes     — pending    —                     │
+└──────────────────────────────────────────────────────┘
 ```
 
-**Job selector:** A `<select>` dropdown listing each job in queue order. Each
-option shows the job name and its status icon:
-- ⟳ running · ✓ success · ✗ failed · — pending · ⊘ canceled
+**Table columns:** Job name | Status | Actions.
 
-The dropdown auto-advances to the currently running job as the queue progresses.
-Selecting a different option immediately switches the log panel to that job's
-output.
+Status values: ⟳ running · ✓ success · ✗ failed · — pending · ⊘ canceled.
 
-**Selecting a job** displays the log for that job's `Run` (polling
-`/api/runs/{runId}/log?since=N` every 1 s while status is `running`, stopping
-when finished). Jobs not yet started show "Waiting…" in the log panel.
+**View logs** button appears for any job that has started (status is not
+pending). Clicking it navigates to the queue logs screen, opening directly on
+that job.
 
 **Header:**
 - Queue name
-- Overall status badge (same states as job runs)
+- Overall status badge
 - **Stop** button (visible while running; calls `/api/queue-runs/{id}/stop`)
-- Start time + elapsed / finish time
+- Start time + elapsed (while running) or total duration (when finished)
 
-**Polling:** While the queue run is `running`, the screen polls
-`GET /api/queue-runs/{id}` every 2 s to update dropdown option labels and detect
-completion. On completion, polling stops.
+**Polling:** While `running`, polls `GET /api/queue-runs/{id}` every 2 s to
+refresh job statuses. Stops when the overall status leaves `running`.
 
-**"Not yet run" state:** If navigated to from View with no in-memory run, show a
-message: *"This queue has not been run since the server started. Click Run to
-start it."* with a Run button.
+---
+
+### Queue logs screen (`data-screen="queuelogs"`)
+
+Reached from the **View logs** button on the queue run detail screen.
+
+Shows the raw log output for one job, with a dropdown to switch to any other
+job's log without leaving the screen.
+
+Layout:
+
+```
+┌──────────────────────────────────────────────────────┐
+│  ← Nightly Backup                                    │
+│                                                       │
+│  Job: [ Sync Music ⟳ running ▾ ]                     │
+│                                                       │
+│  [ log output ]                                       │
+│  ...                                                  │
+└──────────────────────────────────────────────────────┘
+```
+
+**Job dropdown:** Lists all jobs in queue order with their current status icon.
+Selecting a different job immediately switches the log panel to that job's
+output. Only jobs that have started appear as selectable options; pending jobs
+are shown as disabled options.
+
+**Log panel:** Polls `/api/runs/{runId}/log?since=N` every 1 s while the
+selected job is `running`. Stops polling when the job finishes. Jobs not yet
+started show "Waiting…".
+
+**Back link** (← Nightly Backup) returns to the queue run detail screen.
+
+**"Not yet run" state:** If the status button is clicked with no in-memory run,
+show a message: *"This queue has not been run since the server started."* with a
+**Run** button.
 
 ### Dashboard changes
 
