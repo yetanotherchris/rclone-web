@@ -9,10 +9,10 @@
 import { showScreen } from './screens.js';
 import { checkStatus, doUnlock, doLock } from './session.js';
 import {
-  saveJob, openJobForm, toggleDestFields, updateCmdPreview, updatePathPlaceholders,
+  saveJob, openJobForm, toggleDestFields, updateCmdPreview, updatePathPlaceholders, switchJobTab,
 } from './jobs.js';
 import {
-  saveProvider, openProvForm, addCustomKey, renderProviderFields,
+  saveProvider, openProvForm, addCustomKey, renderProviderFields, switchProvTab,
 } from './providers.js';
 import { proceedWithRun, stopRun } from './runs.js';
 
@@ -20,6 +20,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Nav buttons
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => showScreen(btn.dataset.nav));
+  });
+
+  // Job form tabs
+  document.querySelectorAll('.job-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchJobTab(btn.dataset.tab));
+  });
+
+  // Provider form tabs
+  document.querySelectorAll('.prov-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchProvTab(btn.dataset.tab));
   });
 
   // Back buttons
@@ -80,6 +90,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // Provider form type change
   document.getElementById('p-type').addEventListener('change', renderProviderFields);
   document.getElementById('p-name').addEventListener('input', renderProviderFields);
+
+  // Reset idle timer on form interaction (focusin, input, change on any form element).
+  // Debounced to at most one ping per 15 s so we don't flood the server.
+  let pingPending = false;
+  document.addEventListener('focusin', maybeping);
+  document.addEventListener('input', maybeping);
+  document.addEventListener('change', maybeping);
+  function maybeping(e) {
+    if (!e.target.matches('input, textarea, select, button')) return;
+    if (pingPending) return;
+    pingPending = true;
+    setTimeout(() => { pingPending = false; }, 15000);
+    fetch('/api/ping').catch(() => {});
+  }
 
   // Check session status on load
   checkStatus();

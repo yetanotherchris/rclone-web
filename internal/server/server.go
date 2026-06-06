@@ -170,6 +170,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/status", s.handleStatus)
 
 	// Protected API
+	mux.HandleFunc("GET /api/ping", s.auth(func(w http.ResponseWriter, r *http.Request) { jsonOK(w, nil) }))
 	mux.HandleFunc("GET /api/jobs", s.auth(s.handleListJobs))
 	mux.HandleFunc("POST /api/jobs", s.csrf(s.handleCreateJob))
 	mux.HandleFunc("GET /api/jobs/{id}", s.auth(s.handleGetJob))
@@ -466,6 +467,19 @@ func (s *Server) handleRunJob(w http.ResponseWriter, r *http.Request) {
 		os.Environ(),
 		func(r *runner.Run) {
 			s.sessions.SetRunActive(false)
+			s.mu.Lock()
+			if s.rcCfg != nil && !r.FinishedAt.IsZero() {
+				for i := range s.rcCfg.Rclone.Jobs {
+					if s.rcCfg.Rclone.Jobs[i].ID == r.JobID {
+						t := r.FinishedAt
+						s.rcCfg.Rclone.Jobs[i].LastRunAt = &t
+						s.rcCfg.Rclone.Jobs[i].LastRunStatus = string(r.Status)
+						_ = s.saveConfig()
+						break
+					}
+				}
+			}
+			s.mu.Unlock()
 		},
 	)
 	if err != nil {

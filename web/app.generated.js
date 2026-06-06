@@ -192,51 +192,12 @@
     }
   }
 
-  // web/js/dashboard.js
-  function renderDashboard() {
-    const pCount = state.providers.length;
-    const jCount = state.jobs.length;
-    document.getElementById("dashboard-summary").textContent = `${jCount} job${jCount !== 1 ? "s" : ""} · ${pCount} provider${pCount !== 1 ? "s" : ""}`;
-    const tbody = document.getElementById("dashboard-tbody");
-    tbody.innerHTML = "";
-    if (!state.jobs.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-6 text-center text-sm text-slate-400">No jobs yet. <a href="#" class="dash-add-link text-brand-600 hover:underline">Add one</a>.</td></tr>';
-      const link = tbody.querySelector(".dash-add-link");
-      if (link) link.addEventListener("click", (e) => {
-        e.preventDefault();
-        showScreen("jobs");
-      });
-      return;
-    }
-    state.jobs.forEach((job) => {
-      const route = formatRoute(job);
-      const lastRun = job.lastRun;
-      let statusBadge = '<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">never run</span>';
-      if (lastRun) {
-        statusBadge = runStatusBadge(lastRun.status, lastRun.exitCode);
-      }
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-      <td class="px-5 py-4 font-medium">${esc(job.name)}</td>
-      <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(route)}</td>
-      <td class="px-5 py-4">${statusBadge}</td>
-      <td class="px-5 py-4 text-right space-x-2">
-        <button class="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 run-btn" data-job-id="${job.id}" data-dry="false">Run</button>
-        <button class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 run-btn" data-job-id="${job.id}" data-dry="true">Dry-run</button>
-      </td>`;
-      tbody.appendChild(tr);
-    });
-    tbody.querySelectorAll(".run-btn").forEach((btn) => {
-      btn.addEventListener("click", () => startRunFlow(btn.dataset.jobId, btn.dataset.dry === "true"));
-    });
-  }
-
   // web/js/jobs.js
   function renderJobsList() {
     const tbody = document.getElementById("jobs-tbody");
     tbody.innerHTML = "";
     if (!state.jobs.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-6 text-center text-sm text-slate-400">No jobs yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-6 text-center text-sm text-slate-400">No jobs yet.</td></tr>';
       return;
     }
     state.jobs.forEach((job) => {
@@ -249,6 +210,7 @@
       <td class="px-5 py-4">${cmdBadge}</td>
       <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(srcRemote)}</td>
       <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(dstRemote)}</td>
+      <td class="px-5 py-4 text-xs">${lastRunCell(job)}</td>
       <td class="px-5 py-4 text-right">
         <button class="edit-job-btn text-xs font-medium text-brand-600 hover:underline" data-job-id="${job.id}">Edit</button>
         <button class="delete-job-btn ml-3 text-xs font-medium text-rose-600 hover:underline" data-job-id="${job.id}">Delete</button>
@@ -266,13 +228,29 @@
     const colors = { copy: "slate", sync: "amber", move: "rose", check: "sky", lsf: "violet" };
     return colors[cmd] || "slate";
   }
+  function lastRunCell(job) {
+    if (!job.last_run_at) return '<span class="text-slate-400">Never</span>';
+    const d = new Date(job.last_run_at);
+    const date = d.toLocaleDateString(void 0, { year: "numeric", month: "short", day: "numeric" });
+    const time = d.toLocaleTimeString(void 0, { hour: "2-digit", minute: "2-digit" });
+    const s = job.last_run_status;
+    const dot = s === "success" ? '<span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1"></span>' : s === "failed" ? '<span class="inline-block w-2 h-2 rounded-full bg-rose-500 mr-1"></span>' : s === "canceled" ? '<span class="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1"></span>' : "";
+    return `${dot}<span class="text-slate-700">${date}</span> <span class="text-slate-400">${time}</span>`;
+  }
+  function switchJobTab(tabName) {
+    document.querySelectorAll(".job-tab").forEach((t) => t.classList.add("hidden"));
+    document.getElementById("tab-" + tabName).classList.remove("hidden");
+    document.querySelectorAll(".job-tab-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.tab === tabName);
+    });
+  }
   function openJobForm(jobId) {
     const job = jobId ? state.jobs.find((j) => j.id === jobId) : null;
+    switchJobTab("details");
     document.getElementById("jobform-title").textContent = job ? "Edit job" : "New job";
     document.getElementById("f-id").value = job ? job.id : "";
     document.getElementById("f-name").value = job ? job.name || "" : "";
     document.getElementById("f-cmd").value = job ? job.command : "copy";
-    document.getElementById("f-enabled").checked = job ? job.enabled : true;
     document.getElementById("f-spath").value = job ? job.source_path || "" : "";
     document.getElementById("f-dpath").value = job ? job.dest_path || "" : "";
     document.getElementById("f-extra").value = job && job.extra_args && job.extra_args !== "undefined" ? job.extra_args : "";
@@ -290,7 +268,7 @@
   function populateProviderSelects() {
     ["f-sprov", "f-dprov"].forEach((id) => {
       const sel = document.getElementById(id);
-      sel.innerHTML = '<option value="">(none / local path)</option>';
+      sel.innerHTML = '<option value="">Local path</option>';
       state.providers.forEach((p) => {
         const opt = document.createElement("option");
         opt.value = p.name;
@@ -308,8 +286,8 @@
   function updatePathPlaceholders() {
     const sLocal = isLocalProvider(document.getElementById("f-sprov").value);
     const dLocal = isLocalProvider(document.getElementById("f-dprov").value);
-    document.getElementById("f-spath").placeholder = sLocal ? "D:/folder/  or  D:/folder/file.txt" : "bucketname/folder/  or  bucketname/folder/file.txt";
-    document.getElementById("f-dpath").placeholder = dLocal ? "D:/backups/" : "bucketname/  or  bucketname/folder1/folder2/";
+    document.getElementById("f-spath").placeholder = "";
+    document.getElementById("f-dpath").placeholder = "";
   }
   function updateCmdPreview() {
     const cmd = document.getElementById("f-cmd").value;
@@ -332,7 +310,6 @@
       id,
       name: document.getElementById("f-name").value.trim(),
       command: document.getElementById("f-cmd").value,
-      enabled: document.getElementById("f-enabled").checked,
       source_provider: document.getElementById("f-sprov").value,
       source_path: document.getElementById("f-spath").value.trim(),
       dest_provider: document.getElementById("f-dprov").value,
@@ -366,6 +343,49 @@
     } catch (err) {
       alert("Delete failed: " + err.message);
     }
+  }
+
+  // web/js/dashboard.js
+  function renderDashboard() {
+    const pCount = state.providers.length;
+    const jCount = state.jobs.length;
+    document.getElementById("dashboard-summary").textContent = `${jCount} job${jCount !== 1 ? "s" : ""} · ${pCount} provider${pCount !== 1 ? "s" : ""}`;
+    const tbody = document.getElementById("dashboard-tbody");
+    tbody.innerHTML = "";
+    if (!state.jobs.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-6 text-center text-sm text-slate-400">No jobs yet. <a href="#" class="dash-add-link text-brand-600 hover:underline">Add one</a>.</td></tr>';
+      const link = tbody.querySelector(".dash-add-link");
+      if (link) link.addEventListener("click", (e) => {
+        e.preventDefault();
+        showScreen("jobs");
+      });
+      return;
+    }
+    state.jobs.forEach((job) => {
+      const route = formatRoute(job);
+      const lastRun = job.lastRun;
+      let statusBadge;
+      if (lastRun) {
+        statusBadge = runStatusBadge(lastRun.status, lastRun.exitCode);
+      } else if (job.last_run_status) {
+        statusBadge = runStatusBadge(job.last_run_status, 0);
+      } else {
+        statusBadge = '<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">never run</span>';
+      }
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+      <td class="px-5 py-4 font-medium">${esc(job.name)}</td>
+      <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(route)}</td>
+      <td class="px-5 py-4">${statusBadge} <span class="text-xs text-slate-400 ml-1">${job.last_run_at ? new Date(job.last_run_at).toLocaleDateString(void 0, { month: "short", day: "numeric" }) : ""}</span></td>
+      <td class="px-5 py-4 text-right space-x-2">
+        <button class="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 run-btn" data-job-id="${job.id}" data-dry="false">Run</button>
+        <button class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 run-btn" data-job-id="${job.id}" data-dry="true">Dry-run</button>
+      </td>`;
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll(".run-btn").forEach((btn) => {
+      btn.addEventListener("click", () => startRunFlow(btn.dataset.jobId, btn.dataset.dry === "true"));
+    });
   }
 
   // web/js/providers.js
@@ -411,8 +431,16 @@
     const lower = k.toLowerCase();
     return lower.includes("key") || lower.includes("secret") || lower.includes("password") || lower.includes("pass") || lower.includes("token");
   }
+  function switchProvTab(tabName) {
+    document.querySelectorAll(".prov-tab").forEach((t) => t.classList.add("hidden"));
+    document.getElementById("ptab-" + tabName).classList.remove("hidden");
+    document.querySelectorAll(".prov-tab-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.tab === tabName);
+    });
+  }
   function openProvForm(name) {
     state.editingProvName = name;
+    switchProvTab("details");
     const prov = name ? state.providers.find((p) => p.name === name) : null;
     document.getElementById("provform-title").textContent = prov ? "Edit provider" : "New provider";
     document.getElementById("p-name").value = prov ? prov.name : "";
@@ -453,7 +481,6 @@
     const type = document.getElementById("p-type").value;
     const name = (document.getElementById("p-name").value || "remote").toUpperCase();
     const prefix = `RCLONE_CONFIG_${name}_`;
-    document.getElementById("p-prefix").textContent = `→ ${prefix}<KEY>`;
     const backend = state.backends && state.backends.find((b) => b.Name === type);
     const options = backend && backend.Options || [];
     const required = options.filter((o) => !o.Advanced && !o.Hide);
@@ -461,6 +488,8 @@
     if (type === "drive") {
       const fileIdx = required.findIndex((o) => o.Name === "service_account_file");
       if (fileIdx !== -1) advanced.unshift(...required.splice(fileIdx, 1));
+      const token = options.find((o) => o.Name === "token");
+      if (token && !required.includes(token)) required.unshift(token);
       const blob = options.find((o) => o.Name === "service_account_credentials");
       if (blob && !required.includes(blob)) required.unshift(blob);
     }
@@ -469,41 +498,51 @@
     if (required.length) {
       fieldsEl.innerHTML = required.map((o) => backendFieldHTML(o, prefix)).join("");
     } else {
-      fieldsEl.innerHTML = '<p class="text-sm text-slate-400">This backend needs no required fields. Use custom keys below.</p>';
+      fieldsEl.innerHTML = '<p class="text-sm text-slate-400">This backend has no required fields. Check the Advanced tab for options or add custom keys there.</p>';
     }
     if (advanced.length) {
       advEl.innerHTML = advanced.map((o) => backendFieldHTML(o, prefix)).join("");
-      document.getElementById("p-advanced").classList.remove("hidden");
     } else {
-      advEl.innerHTML = '<p class="text-sm text-slate-400">No advanced options.</p>';
-      document.getElementById("p-advanced").classList.add("hidden");
+      advEl.innerHTML = '<p class="text-sm text-slate-400">No advanced options for this backend.</p>';
     }
   }
   function backendFieldHTML(opt, prefix) {
     const key = opt.Name || "";
-    const label = opt.Help ? opt.Help.split("\n")[0] : key;
-    const isPassword = opt.IsPassword || opt.Sensitive;
-    const isBlob = key === "service_account_credentials";
+    const helpLines = opt.Help ? opt.Help.trim().split("\n").map((l) => l.trim()).filter(Boolean) : [];
+    const label = helpLines[0] || key;
+    const extraHelp = helpLines.slice(1).join(" ");
     const envKey = prefix + key.toUpperCase();
-    let input, hint = "";
+    const tipParts = [];
+    if (extraHelp) tipParts.push(esc(extraHelp));
+    tipParts.push(`<span style="opacity:0.65;font-style:italic">${esc(envKey)}</span>`);
+    const isPassword = opt.IsPassword || opt.Sensitive;
+    const isServiceAccount = key === "service_account_credentials";
+    const isToken = key === "token";
+    const isBlob = isServiceAccount || isToken;
+    if (isServiceAccount) tipParts.unshift("Alternative to OAuth token - use for service accounts. Leave blank if using an OAuth token. Prefer a file on disk? Use the &quot;Service Account Credentials JSON file path&quot; field under Advanced.");
+    if (isToken) tipParts.unshift("OAuth token JSON blob obtained from rclone config. Leave blank if using a service account instead.");
+    const tooltipHtml = ` <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">${tipParts.join("<br>")}</span></span>`;
+    let input;
     if (isBlob) {
-      input = `<textarea id="pf-${esc(key)}" rows="4" placeholder='{ "type": "service_account", "project_id": "...", ... }' class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>`;
-      hint = 'Paste the JSON itself to keep the credentials inside the encrypted config — no plaintext key file left on disk. Prefer a file on disk instead? Use the "Service Account Credentials JSON file path" field under Advanced.';
-    } else if (opt.Examples && opt.Examples.length) {
+      const ph = isServiceAccount ? '{ "type": "service_account", "project_id": "...", ... }' : '{"access_token":"...","token_type":"Bearer","refresh_token":"...","expiry":"..."}';
+      input = `<textarea id="pf-${esc(key)}" rows="3" placeholder='${ph}' class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>`;
+    } else if (opt.Examples && opt.Examples.length > 1) {
       const opts = opt.Examples.map((ex) => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join("");
       input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
     } else if (opt.Type === "bool") {
-      input = `<label class="flex items-center gap-2 py-2 text-sm"><input type="checkbox" id="pf-${esc(key)}" class="rounded"> Enabled</label>`;
+      const def = opt.DefaultStr !== void 0 ? opt.DefaultStr : opt.Default !== void 0 ? String(opt.Default) : "";
+      const checked = def === "true" ? " checked" : "";
+      return `<div class="flex items-center gap-3 py-1">
+      <label class="toggle shrink-0"><input type="checkbox" id="pf-${esc(key)}" class="toggle-cb"${checked}><span class="toggle-track"></span></label>
+      <label for="pf-${esc(key)}" class="text-sm font-semibold cursor-pointer">${esc(label)}${tooltipHtml}</label>
+    </div>`;
     } else {
-      const t = isPassword ? "password" : opt.Type === "int" ? "number" : "text";
+      const t = opt.Type === "int" ? "number" : "text";
       const def = opt.DefaultStr !== void 0 ? opt.DefaultStr : opt.Default !== void 0 ? String(opt.Default) : "";
       input = `<input type="${t}" id="pf-${esc(key)}" value="${esc(def)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm">`;
     }
-    const hintHTML = hint ? `<p class="mt-1 text-xs text-slate-500">${esc(hint)}</p>` : "";
     return `<div>
-    <label class="mb-1 block text-sm font-medium">${esc(label)}
-      <span class="ml-1 font-mono text-xs text-slate-400">${esc(envKey)}</span>
-    </label>${input}${hintHTML}</div>`;
+    <label class="mb-1 block text-sm font-semibold">${esc(label)}${tooltipHtml}</label>${input}</div>`;
   }
   function addCustomKey() {
     const row = document.createElement("div");
@@ -688,6 +727,12 @@
     document.querySelectorAll(".nav-btn").forEach((btn) => {
       btn.addEventListener("click", () => showScreen(btn.dataset.nav));
     });
+    document.querySelectorAll(".job-tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchJobTab(btn.dataset.tab));
+    });
+    document.querySelectorAll(".prov-tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchProvTab(btn.dataset.tab));
+    });
     document.querySelectorAll(".back-btn").forEach((btn) => {
       btn.addEventListener("click", () => showScreen(btn.dataset.back));
     });
@@ -734,6 +779,20 @@
     document.getElementById("confirm-no").addEventListener("click", () => showScreen("dashboard"));
     document.getElementById("p-type").addEventListener("change", renderProviderFields);
     document.getElementById("p-name").addEventListener("input", renderProviderFields);
+    let pingPending = false;
+    document.addEventListener("focusin", maybeping);
+    document.addEventListener("input", maybeping);
+    document.addEventListener("change", maybeping);
+    function maybeping(e) {
+      if (!e.target.matches("input, textarea, select, button")) return;
+      if (pingPending) return;
+      pingPending = true;
+      setTimeout(() => {
+        pingPending = false;
+      }, 15e3);
+      fetch("/api/ping").catch(() => {
+      });
+    }
     checkStatus();
   });
 })();

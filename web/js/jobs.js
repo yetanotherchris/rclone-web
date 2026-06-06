@@ -12,7 +12,7 @@ export function renderJobsList() {
   tbody.innerHTML = '';
 
   if (!state.jobs.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-6 text-center text-sm text-slate-400">No jobs yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-6 text-center text-sm text-slate-400">No jobs yet.</td></tr>';
     return;
   }
 
@@ -26,6 +26,7 @@ export function renderJobsList() {
       <td class="px-5 py-4">${cmdBadge}</td>
       <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(srcRemote)}</td>
       <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(dstRemote)}</td>
+      <td class="px-5 py-4 text-xs">${lastRunCell(job)}</td>
       <td class="px-5 py-4 text-right">
         <button class="edit-job-btn text-xs font-medium text-brand-600 hover:underline" data-job-id="${job.id}">Edit</button>
         <button class="delete-job-btn ml-3 text-xs font-medium text-rose-600 hover:underline" data-job-id="${job.id}">Delete</button>
@@ -46,13 +47,37 @@ function cmdColor(cmd) {
   return colors[cmd] || 'slate';
 }
 
+export function lastRunCell(job) {
+  if (!job.last_run_at) return '<span class="text-slate-400">Never</span>';
+  const d = new Date(job.last_run_at);
+  const date = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const s = job.last_run_status;
+  const dot = s === 'success'
+    ? '<span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1"></span>'
+    : s === 'failed'
+    ? '<span class="inline-block w-2 h-2 rounded-full bg-rose-500 mr-1"></span>'
+    : s === 'canceled'
+    ? '<span class="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1"></span>'
+    : '';
+  return `${dot}<span class="text-slate-700">${date}</span> <span class="text-slate-400">${time}</span>`;
+}
+
+export function switchJobTab(tabName) {
+  document.querySelectorAll('.job-tab').forEach(t => t.classList.add('hidden'));
+  document.getElementById('tab-' + tabName).classList.remove('hidden');
+  document.querySelectorAll('.job-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+}
+
 export function openJobForm(jobId) {
   const job = jobId ? state.jobs.find(j => j.id === jobId) : null;
+  switchJobTab('details');
   document.getElementById('jobform-title').textContent = job ? 'Edit job' : 'New job';
   document.getElementById('f-id').value = job ? job.id : '';
   document.getElementById('f-name').value = job ? (job.name || '') : '';
   document.getElementById('f-cmd').value = job ? job.command : 'copy';
-  document.getElementById('f-enabled').checked = job ? job.enabled : true;
   document.getElementById('f-spath').value = job ? (job.source_path || '') : '';
   document.getElementById('f-dpath').value = job ? (job.dest_path || '') : '';
   document.getElementById('f-extra').value = job && job.extra_args && job.extra_args !== 'undefined' ? job.extra_args : '';
@@ -74,7 +99,7 @@ export function openJobForm(jobId) {
 function populateProviderSelects() {
   ['f-sprov', 'f-dprov'].forEach(id => {
     const sel = document.getElementById(id);
-    sel.innerHTML = '<option value="">(none / local path)</option>';
+    sel.innerHTML = '<option value="">Local path</option>';
     state.providers.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.name;
@@ -94,12 +119,8 @@ export function toggleDestFields() {
 export function updatePathPlaceholders() {
   const sLocal = isLocalProvider(document.getElementById('f-sprov').value);
   const dLocal = isLocalProvider(document.getElementById('f-dprov').value);
-  document.getElementById('f-spath').placeholder = sLocal
-    ? 'D:/folder/  or  D:/folder/file.txt'
-    : 'bucketname/folder/  or  bucketname/folder/file.txt';
-  document.getElementById('f-dpath').placeholder = dLocal
-    ? 'D:/backups/'
-    : 'bucketname/  or  bucketname/folder1/folder2/';
+  document.getElementById('f-spath').placeholder = '';
+  document.getElementById('f-dpath').placeholder = '';
 }
 
 export function updateCmdPreview() {
@@ -125,7 +146,6 @@ export async function saveJob() {
     id,
     name: document.getElementById('f-name').value.trim(),
     command: document.getElementById('f-cmd').value,
-    enabled: document.getElementById('f-enabled').checked,
     source_provider: document.getElementById('f-sprov').value,
     source_path: document.getElementById('f-spath').value.trim(),
     dest_provider: document.getElementById('f-dprov').value,

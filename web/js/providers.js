@@ -58,8 +58,17 @@ function isSensitiveKey(k) {
          lower.includes('pass') || lower.includes('token');
 }
 
+export function switchProvTab(tabName) {
+  document.querySelectorAll('.prov-tab').forEach(t => t.classList.add('hidden'));
+  document.getElementById('ptab-' + tabName).classList.remove('hidden');
+  document.querySelectorAll('.prov-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+}
+
 export function openProvForm(name) {
   state.editingProvName = name;
+  switchProvTab('details');
   const prov = name ? state.providers.find(p => p.name === name) : null;
   document.getElementById('provform-title').textContent = prov ? 'Edit provider' : 'New provider';
   document.getElementById('p-name').value = prov ? prov.name : '';
@@ -112,7 +121,6 @@ export function renderProviderFields() {
   const type = document.getElementById('p-type').value;
   const name = (document.getElementById('p-name').value || 'remote').toUpperCase();
   const prefix = `RCLONE_CONFIG_${name}_`;
-  document.getElementById('p-prefix').textContent = `→ ${prefix}<KEY>`;
 
   // Try to get fields from the backends schema
   const backend = state.backends && state.backends.find(b => b.Name === type);
@@ -121,14 +129,15 @@ export function renderProviderFields() {
   const required = options.filter(o => !o.Advanced && !o.Hide);
   const advanced = options.filter(o => o.Advanced && !o.Hide);
 
-  // Google Drive: prefer pasting the service-account JSON *blob* (stored inside the
-  // encrypted config) over referencing a plaintext key file on disk. rclone marks
-  // the blob option Hide=2 (so it's filtered out above) and surfaces
-  // service_account_file as a normal field — so swap their prominence: show the
-  // blob up top in the main section, and demote the file-path option to Advanced.
+  // Google Drive: surface both auth options in Details (both are Hide=2 so filtered
+  // out above). OAuth token and service account are mutually exclusive — leave the
+  // other blank. Demote the plaintext service_account_file path to Advanced.
   if (type === 'drive') {
     const fileIdx = required.findIndex(o => o.Name === 'service_account_file');
     if (fileIdx !== -1) advanced.unshift(...required.splice(fileIdx, 1));
+
+    const token = options.find(o => o.Name === 'token');
+    if (token && !required.includes(token)) required.unshift(token);
 
     const blob = options.find(o => o.Name === 'service_account_credentials');
     if (blob && !required.includes(blob)) required.unshift(blob);
@@ -140,45 +149,57 @@ export function renderProviderFields() {
   if (required.length) {
     fieldsEl.innerHTML = required.map(o => backendFieldHTML(o, prefix)).join('');
   } else {
-    fieldsEl.innerHTML = '<p class="text-sm text-slate-400">This backend needs no required fields. Use custom keys below.</p>';
+    fieldsEl.innerHTML = '<p class="text-sm text-slate-400">This backend has no required fields. Check the Advanced tab for options or add custom keys there.</p>';
   }
 
   if (advanced.length) {
     advEl.innerHTML = advanced.map(o => backendFieldHTML(o, prefix)).join('');
-    document.getElementById('p-advanced').classList.remove('hidden');
   } else {
-    advEl.innerHTML = '<p class="text-sm text-slate-400">No advanced options.</p>';
-    document.getElementById('p-advanced').classList.add('hidden');
+    advEl.innerHTML = '<p class="text-sm text-slate-400">No advanced options for this backend.</p>';
   }
 }
 
 function backendFieldHTML(opt, prefix) {
   const key = opt.Name || '';
-  const label = opt.Help ? opt.Help.split('\n')[0] : key;
-  const isPassword = opt.IsPassword || opt.Sensitive;
-  const isBlob = key === 'service_account_credentials';
+  const helpLines = opt.Help ? opt.Help.trim().split('\n').map(l => l.trim()).filter(Boolean) : [];
+  const label = helpLines[0] || key;
+  const extraHelp = helpLines.slice(1).join(' ');
   const envKey = prefix + key.toUpperCase();
-  let input, hint = '';
+  const tipParts = [];
+  if (extraHelp) tipParts.push(esc(extraHelp));
+  tipParts.push(`<span style="opacity:0.65;font-style:italic">${esc(envKey)}</span>`);
+  const isPassword = opt.IsPassword || opt.Sensitive;
+  const isServiceAccount = key === 'service_account_credentials';
+  const isToken = key === 'token';
+  const isBlob = isServiceAccount || isToken;
+  if (isServiceAccount) tipParts.unshift('Alternative to OAuth token - use for service accounts. Leave blank if using an OAuth token. Prefer a file on disk? Use the &quot;Service Account Credentials JSON file path&quot; field under Advanced.');
+  if (isToken) tipParts.unshift('OAuth token JSON blob obtained from rclone config. Leave blank if using a service account instead.');
+  const tooltipHtml = ` <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">${tipParts.join('<br>')}</span></span>`;
+  let input;
 
   if (isBlob) {
-    input = `<textarea id="pf-${esc(key)}" rows="4" placeholder='{ "type": "service_account", "project_id": "...", ... }' class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>`;
-    hint = 'Paste the JSON itself to keep the credentials inside the encrypted config — no plaintext key file left on disk. Prefer a file on disk instead? Use the "Service Account Credentials JSON file path" field under Advanced.';
-  } else if (opt.Examples && opt.Examples.length) {
+    const ph = isServiceAccount
+      ? '{ "type": "service_account", "project_id": "...", ... }'
+      : '{"access_token":"...","token_type":"Bearer","refresh_token":"...","expiry":"..."}';
+    input = `<textarea id="pf-${esc(key)}" rows="3" placeholder='${ph}' class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>`;
+  } else if (opt.Examples && opt.Examples.length > 1) {
     const opts = opt.Examples.map(ex => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join('');
     input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
   } else if (opt.Type === 'bool') {
-    input = `<label class="flex items-center gap-2 py-2 text-sm"><input type="checkbox" id="pf-${esc(key)}" class="rounded"> Enabled</label>`;
+    const def = opt.DefaultStr !== undefined ? opt.DefaultStr : (opt.Default !== undefined ? String(opt.Default) : '');
+    const checked = def === 'true' ? ' checked' : '';
+    return `<div class="flex items-center gap-3 py-1">
+      <label class="toggle shrink-0"><input type="checkbox" id="pf-${esc(key)}" class="toggle-cb"${checked}><span class="toggle-track"></span></label>
+      <label for="pf-${esc(key)}" class="text-sm font-semibold cursor-pointer">${esc(label)}${tooltipHtml}</label>
+    </div>`;
   } else {
-    const t = isPassword ? 'password' : (opt.Type === 'int' ? 'number' : 'text');
+    const t = opt.Type === 'int' ? 'number' : 'text';
     const def = opt.DefaultStr !== undefined ? opt.DefaultStr : (opt.Default !== undefined ? String(opt.Default) : '');
     input = `<input type="${t}" id="pf-${esc(key)}" value="${esc(def)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm">`;
   }
 
-  const hintHTML = hint ? `<p class="mt-1 text-xs text-slate-500">${esc(hint)}</p>` : '';
   return `<div>
-    <label class="mb-1 block text-sm font-medium">${esc(label)}
-      <span class="ml-1 font-mono text-xs text-slate-400">${esc(envKey)}</span>
-    </label>${input}${hintHTML}</div>`;
+    <label class="mb-1 block text-sm font-semibold">${esc(label)}${tooltipHtml}</label>${input}</div>`;
 }
 
 export function addCustomKey() {
