@@ -62,11 +62,7 @@ export function switchProvTab(tabName) {
   document.querySelectorAll('.prov-tab').forEach(t => t.classList.add('hidden'));
   document.getElementById('ptab-' + tabName).classList.remove('hidden');
   document.querySelectorAll('.prov-tab-btn').forEach(btn => {
-    const active = btn.dataset.tab === tabName;
-    btn.classList.toggle('border-brand-600', active);
-    btn.classList.toggle('text-brand-700', active);
-    btn.classList.toggle('border-transparent', !active);
-    btn.classList.toggle('text-slate-500', !active);
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
   });
 }
 
@@ -178,7 +174,7 @@ function backendFieldHTML(opt, prefix) {
 
   if (isBlob) {
     input = `<textarea id="pf-${esc(key)}" rows="4" placeholder='{ "type": "service_account", "project_id": "...", ... }' class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>`;
-    hint = 'Paste the JSON itself to keep the credentials inside the encrypted config — no plaintext key file left on disk. Prefer a file on disk instead? Use the "Service Account Credentials JSON file path" field under Advanced.';
+    hint = 'Paste the JSON itself to keep the credentials inside the encrypted config - no plaintext key file left on disk. Prefer a file on disk instead? Use the "Service Account Credentials JSON file path" field under Advanced.';
   } else if (opt.Examples && opt.Examples.length) {
     const opts = opt.Examples.map(ex => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join('');
     input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;

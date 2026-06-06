@@ -50,11 +50,7 @@ export function switchJobTab(tabName) {
   document.querySelectorAll('.job-tab').forEach(t => t.classList.add('hidden'));
   document.getElementById('tab-' + tabName).classList.remove('hidden');
   document.querySelectorAll('.job-tab-btn').forEach(btn => {
-    const active = btn.dataset.tab === tabName;
-    btn.classList.toggle('border-brand-600', active);
-    btn.classList.toggle('text-brand-700', active);
-    btn.classList.toggle('border-transparent', !active);
-    btn.classList.toggle('text-slate-500', !active);
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
   });
 }
 
