@@ -12,7 +12,7 @@ export function renderJobsList() {
   tbody.innerHTML = '';
 
   if (!state.jobs.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-6 text-center text-sm text-slate-400">No jobs yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-6 text-center text-sm text-slate-400">No jobs yet.</td></tr>';
     return;
   }
 
@@ -26,6 +26,7 @@ export function renderJobsList() {
       <td class="px-5 py-4">${cmdBadge}</td>
       <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(srcRemote)}</td>
       <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(dstRemote)}</td>
+      <td class="px-5 py-4 text-xs">${lastRunCell(job)}</td>
       <td class="px-5 py-4 text-right">
         <button class="edit-job-btn text-xs font-medium text-brand-600 hover:underline" data-job-id="${job.id}">Edit</button>
         <button class="delete-job-btn ml-3 text-xs font-medium text-rose-600 hover:underline" data-job-id="${job.id}">Delete</button>
@@ -44,6 +45,22 @@ export function renderJobsList() {
 function cmdColor(cmd) {
   const colors = { copy: 'slate', sync: 'amber', move: 'rose', check: 'sky', lsf: 'violet' };
   return colors[cmd] || 'slate';
+}
+
+export function lastRunCell(job) {
+  if (!job.last_run_at) return '<span class="text-slate-400">Never</span>';
+  const d = new Date(job.last_run_at);
+  const date = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const s = job.last_run_status;
+  const dot = s === 'success'
+    ? '<span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1"></span>'
+    : s === 'failed'
+    ? '<span class="inline-block w-2 h-2 rounded-full bg-rose-500 mr-1"></span>'
+    : s === 'canceled'
+    ? '<span class="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1"></span>'
+    : '';
+  return `${dot}<span class="text-slate-700">${date}</span> <span class="text-slate-400">${time}</span>`;
 }
 
 export function switchJobTab(tabName) {

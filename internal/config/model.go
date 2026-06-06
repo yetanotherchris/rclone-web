@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -32,7 +33,9 @@ type Job struct {
 	DestProvider   string `yaml:"dest_provider,omitempty" json:"dest_provider,omitempty"`
 	DestPath       string `yaml:"dest_path,omitempty" json:"dest_path,omitempty"`
 	Command        string `yaml:"command,omitempty" json:"command,omitempty"`
-	ExtraArgs      string `yaml:"extra_args,omitempty" json:"extra_args,omitempty"`
+	ExtraArgs      string     `yaml:"extra_args,omitempty" json:"extra_args,omitempty"`
+	LastRunAt      *time.Time `yaml:"last_run_at,omitempty" json:"last_run_at,omitempty"`
+	LastRunStatus  string     `yaml:"last_run_status,omitempty" json:"last_run_status,omitempty"`
 }
 
 // DisplayName returns a human-readable label for the job.

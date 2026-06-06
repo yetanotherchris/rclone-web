@@ -192,51 +192,12 @@
     }
   }
 
-  // web/js/dashboard.js
-  function renderDashboard() {
-    const pCount = state.providers.length;
-    const jCount = state.jobs.length;
-    document.getElementById("dashboard-summary").textContent = `${jCount} job${jCount !== 1 ? "s" : ""} · ${pCount} provider${pCount !== 1 ? "s" : ""}`;
-    const tbody = document.getElementById("dashboard-tbody");
-    tbody.innerHTML = "";
-    if (!state.jobs.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-6 text-center text-sm text-slate-400">No jobs yet. <a href="#" class="dash-add-link text-brand-600 hover:underline">Add one</a>.</td></tr>';
-      const link = tbody.querySelector(".dash-add-link");
-      if (link) link.addEventListener("click", (e) => {
-        e.preventDefault();
-        showScreen("jobs");
-      });
-      return;
-    }
-    state.jobs.forEach((job) => {
-      const route = formatRoute(job);
-      const lastRun = job.lastRun;
-      let statusBadge = '<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">never run</span>';
-      if (lastRun) {
-        statusBadge = runStatusBadge(lastRun.status, lastRun.exitCode);
-      }
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-      <td class="px-5 py-4 font-medium">${esc(job.name)}</td>
-      <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(route)}</td>
-      <td class="px-5 py-4">${statusBadge}</td>
-      <td class="px-5 py-4 text-right space-x-2">
-        <button class="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 run-btn" data-job-id="${job.id}" data-dry="false">Run</button>
-        <button class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 run-btn" data-job-id="${job.id}" data-dry="true">Dry-run</button>
-      </td>`;
-      tbody.appendChild(tr);
-    });
-    tbody.querySelectorAll(".run-btn").forEach((btn) => {
-      btn.addEventListener("click", () => startRunFlow(btn.dataset.jobId, btn.dataset.dry === "true"));
-    });
-  }
-
   // web/js/jobs.js
   function renderJobsList() {
     const tbody = document.getElementById("jobs-tbody");
     tbody.innerHTML = "";
     if (!state.jobs.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-6 text-center text-sm text-slate-400">No jobs yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-6 text-center text-sm text-slate-400">No jobs yet.</td></tr>';
       return;
     }
     state.jobs.forEach((job) => {
@@ -249,6 +210,7 @@
       <td class="px-5 py-4">${cmdBadge}</td>
       <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(srcRemote)}</td>
       <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(dstRemote)}</td>
+      <td class="px-5 py-4 text-xs">${lastRunCell(job)}</td>
       <td class="px-5 py-4 text-right">
         <button class="edit-job-btn text-xs font-medium text-brand-600 hover:underline" data-job-id="${job.id}">Edit</button>
         <button class="delete-job-btn ml-3 text-xs font-medium text-rose-600 hover:underline" data-job-id="${job.id}">Delete</button>
@@ -265,6 +227,15 @@
   function cmdColor(cmd) {
     const colors = { copy: "slate", sync: "amber", move: "rose", check: "sky", lsf: "violet" };
     return colors[cmd] || "slate";
+  }
+  function lastRunCell(job) {
+    if (!job.last_run_at) return '<span class="text-slate-400">Never</span>';
+    const d = new Date(job.last_run_at);
+    const date = d.toLocaleDateString(void 0, { year: "numeric", month: "short", day: "numeric" });
+    const time = d.toLocaleTimeString(void 0, { hour: "2-digit", minute: "2-digit" });
+    const s = job.last_run_status;
+    const dot = s === "success" ? '<span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1"></span>' : s === "failed" ? '<span class="inline-block w-2 h-2 rounded-full bg-rose-500 mr-1"></span>' : s === "canceled" ? '<span class="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1"></span>' : "";
+    return `${dot}<span class="text-slate-700">${date}</span> <span class="text-slate-400">${time}</span>`;
   }
   function switchJobTab(tabName) {
     document.querySelectorAll(".job-tab").forEach((t) => t.classList.add("hidden"));
@@ -372,6 +343,49 @@
     } catch (err) {
       alert("Delete failed: " + err.message);
     }
+  }
+
+  // web/js/dashboard.js
+  function renderDashboard() {
+    const pCount = state.providers.length;
+    const jCount = state.jobs.length;
+    document.getElementById("dashboard-summary").textContent = `${jCount} job${jCount !== 1 ? "s" : ""} · ${pCount} provider${pCount !== 1 ? "s" : ""}`;
+    const tbody = document.getElementById("dashboard-tbody");
+    tbody.innerHTML = "";
+    if (!state.jobs.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-6 text-center text-sm text-slate-400">No jobs yet. <a href="#" class="dash-add-link text-brand-600 hover:underline">Add one</a>.</td></tr>';
+      const link = tbody.querySelector(".dash-add-link");
+      if (link) link.addEventListener("click", (e) => {
+        e.preventDefault();
+        showScreen("jobs");
+      });
+      return;
+    }
+    state.jobs.forEach((job) => {
+      const route = formatRoute(job);
+      const lastRun = job.lastRun;
+      let statusBadge;
+      if (lastRun) {
+        statusBadge = runStatusBadge(lastRun.status, lastRun.exitCode);
+      } else if (job.last_run_status) {
+        statusBadge = runStatusBadge(job.last_run_status, 0);
+      } else {
+        statusBadge = '<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">never run</span>';
+      }
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+      <td class="px-5 py-4 font-medium">${esc(job.name)}</td>
+      <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(route)}</td>
+      <td class="px-5 py-4">${statusBadge} <span class="text-xs text-slate-400 ml-1">${job.last_run_at ? new Date(job.last_run_at).toLocaleDateString(void 0, { month: "short", day: "numeric" }) : ""}</span></td>
+      <td class="px-5 py-4 text-right space-x-2">
+        <button class="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 run-btn" data-job-id="${job.id}" data-dry="false">Run</button>
+        <button class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 run-btn" data-job-id="${job.id}" data-dry="true">Dry-run</button>
+      </td>`;
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll(".run-btn").forEach((btn) => {
+      btn.addEventListener("click", () => startRunFlow(btn.dataset.jobId, btn.dataset.dry === "true"));
+    });
   }
 
   // web/js/providers.js
