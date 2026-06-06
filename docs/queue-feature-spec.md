@@ -245,8 +245,33 @@ start it."* with a Run button.
 
 ### Dashboard changes
 
-The existing dashboard shows jobs. A new **Queues** section is added below the
-jobs table with the same Run button pattern.
+The dashboard gains a **Queues** section below the existing Jobs table, rendered
+as its own titled block:
+
+```
+Jobs
+┌──────────────────────────────────────────────────────────┐
+│ Name            Command  Last Run         Actions         │
+│ Archive Photos  copy     ✓ 2 hours ago    [Run] [Dry-run] │
+│ Sync Music      sync     ✗ 1 day ago      [Run] [Dry-run] │
+└──────────────────────────────────────────────────────────┘
+
+Queues
+┌──────────────────────────────────────────────────────────┐
+│ Name             Jobs  Last Run         Actions           │
+│ Nightly Backup   3     ✓ 2 hours ago    [View] [Run]      │
+│ Weekly Archive   5     — never          [View] [Run]      │
+└──────────────────────────────────────────────────────────┘
+```
+
+Columns: Name | Jobs (count) | Last Run (status badge + relative time, or "—
+never") | Actions.
+
+Actions:
+- **View** → queue run screen (latest in-memory run, or "not yet run" message)
+- **Run** → `POST /api/queues/{id}/run`, then navigate to queue run screen
+
+The Queues section is only rendered if at least one queue is defined.
 
 ---
 
