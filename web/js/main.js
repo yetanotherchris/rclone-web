@@ -9,7 +9,7 @@
 import { showScreen } from './screens.js';
 import { checkStatus, doUnlock, doLock } from './session.js';
 import {
-  saveJob, openJobForm, toggleDestFields, updateCmdPreview, updatePathPlaceholders,
+  saveJob, openJobForm, toggleDestFields, updateCmdPreview, updatePathPlaceholders, switchJobTab,
 } from './jobs.js';
 import {
   saveProvider, openProvForm, addCustomKey, renderProviderFields,
@@ -20,6 +20,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Nav buttons
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => showScreen(btn.dataset.nav));
+  });
+
+  // Job form tabs
+  document.querySelectorAll('.job-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchJobTab(btn.dataset.tab));
   });
 
   // Back buttons

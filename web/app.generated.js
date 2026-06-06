@@ -266,8 +266,20 @@
     const colors = { copy: "slate", sync: "amber", move: "rose", check: "sky", lsf: "violet" };
     return colors[cmd] || "slate";
   }
+  function switchJobTab(tabName) {
+    document.querySelectorAll(".job-tab").forEach((t) => t.classList.add("hidden"));
+    document.getElementById("tab-" + tabName).classList.remove("hidden");
+    document.querySelectorAll(".job-tab-btn").forEach((btn) => {
+      const active = btn.dataset.tab === tabName;
+      btn.classList.toggle("border-brand-600", active);
+      btn.classList.toggle("text-brand-700", active);
+      btn.classList.toggle("border-transparent", !active);
+      btn.classList.toggle("text-slate-500", !active);
+    });
+  }
   function openJobForm(jobId) {
     const job = jobId ? state.jobs.find((j) => j.id === jobId) : null;
+    switchJobTab("details");
     document.getElementById("jobform-title").textContent = job ? "Edit job" : "New job";
     document.getElementById("f-id").value = job ? job.id : "";
     document.getElementById("f-name").value = job ? job.name || "" : "";
@@ -687,6 +699,9 @@
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".nav-btn").forEach((btn) => {
       btn.addEventListener("click", () => showScreen(btn.dataset.nav));
+    });
+    document.querySelectorAll(".job-tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchJobTab(btn.dataset.tab));
     });
     document.querySelectorAll(".back-btn").forEach((btn) => {
       btn.addEventListener("click", () => showScreen(btn.dataset.back));
