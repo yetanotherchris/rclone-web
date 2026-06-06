@@ -412,7 +412,7 @@
     state.editingQueueId = queueId || null;
     document.getElementById("queueform-title").textContent = q ? "Edit queue" : "New queue";
     document.getElementById("qf-name").value = q ? q.name || "" : "";
-    document.getElementById("qf-on-failure").value = q ? q.on_failure || "" : "";
+    document.getElementById("qf-on-failure").checked = q ? q.on_failure !== "stop" : true;
     clearError("queueform-error");
     renderQueueJobList(q ? q.job_ids || [] : []);
     showScreen("queueform");
@@ -420,38 +420,52 @@
   function renderQueueJobList(jobIds) {
     const list = document.getElementById("qf-jobs-list");
     list.innerHTML = "";
+    let dragSrcIdx = null;
     jobIds.forEach((jid, idx) => {
       const job = state.jobs.find((j) => j.id === jid);
       const name = job ? job.name : jid;
       const item = document.createElement("div");
-      item.className = "flex items-center gap-2 py-1.5 border-b border-slate-100";
+      item.className = "flex items-center gap-2 py-1.5 border-b border-slate-100 cursor-grab select-none";
       item.dataset.jobId = jid;
+      item.draggable = true;
       item.innerHTML = `
+      <span class="text-slate-300 text-base leading-none" title="Drag to reorder">⠿</span>
       <span class="flex-1 text-sm">${esc(name)}</span>
-      <button type="button" class="qf-up-btn text-slate-400 hover:text-slate-700 px-1" data-idx="${idx}" title="Move up">↑</button>
-      <button type="button" class="qf-down-btn text-slate-400 hover:text-slate-700 px-1" data-idx="${idx}" title="Move down">↓</button>
       <button type="button" class="qf-remove-btn text-rose-400 hover:text-rose-600 px-1" data-idx="${idx}" title="Remove">×</button>`;
+      item.addEventListener("dragstart", (e) => {
+        dragSrcIdx = idx;
+        e.dataTransfer.effectAllowed = "move";
+        setTimeout(() => item.classList.add("opacity-40"), 0);
+      });
+      item.addEventListener("dragend", () => {
+        item.classList.remove("opacity-40");
+        list.querySelectorAll(".drag-over").forEach((el) => el.classList.remove("drag-over", "border-t-2", "border-brand-400"));
+      });
+      item.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        list.querySelectorAll(".drag-over").forEach((el) => el.classList.remove("drag-over", "border-t-2", "border-brand-400"));
+        if (dragSrcIdx !== idx) {
+          item.classList.add("drag-over", "border-t-2", "border-brand-400");
+        }
+      });
+      item.addEventListener("drop", (e) => {
+        e.preventDefault();
+        if (dragSrcIdx === null || dragSrcIdx === idx) return;
+        const ids = getQueueJobIds();
+        const [moved] = ids.splice(dragSrcIdx, 1);
+        ids.splice(idx, 0, moved);
+        dragSrcIdx = null;
+        renderQueueJobList(ids);
+      });
       list.appendChild(item);
     });
-    list.querySelectorAll(".qf-up-btn").forEach(
-      (btn) => btn.addEventListener("click", () => moveQueueJob(Number(btn.dataset.idx), -1))
-    );
-    list.querySelectorAll(".qf-down-btn").forEach(
-      (btn) => btn.addEventListener("click", () => moveQueueJob(Number(btn.dataset.idx), 1))
-    );
     list.querySelectorAll(".qf-remove-btn").forEach(
       (btn) => btn.addEventListener("click", () => removeQueueJob(Number(btn.dataset.idx)))
     );
   }
   function getQueueJobIds() {
     return Array.from(document.getElementById("qf-jobs-list").children).map((el) => el.dataset.jobId);
-  }
-  function moveQueueJob(idx, dir) {
-    const ids = getQueueJobIds();
-    const target = idx + dir;
-    if (target < 0 || target >= ids.length) return;
-    [ids[idx], ids[target]] = [ids[target], ids[idx]];
-    renderQueueJobList(ids);
   }
   function removeQueueJob(idx) {
     const ids = getQueueJobIds();
@@ -481,7 +495,7 @@
   async function saveQueue() {
     const id = state.editingQueueId;
     const name = document.getElementById("qf-name").value.trim();
-    const onFailure = document.getElementById("qf-on-failure").value;
+    const onFailure = document.getElementById("qf-on-failure").checked ? "" : "stop";
     const jobIds = getQueueJobIds();
     if (!name) {
       showError("queueform-error", "Name is required");
