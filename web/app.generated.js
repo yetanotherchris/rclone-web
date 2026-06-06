@@ -501,13 +501,13 @@
     const tipParts = [];
     if (extraHelp) tipParts.push(esc(extraHelp));
     tipParts.push(`<span style="opacity:0.65;font-style:italic">${esc(envKey)}</span>`);
-    const tooltipHtml = ` <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">${tipParts.join("<br>")}</span></span>`;
     const isPassword = opt.IsPassword || opt.Sensitive;
     const isBlob = key === "service_account_credentials";
-    let input, hint = "";
+    if (isBlob) tipParts.unshift("Paste the JSON itself to keep credentials inside the encrypted config - no plaintext key file left on disk. Prefer a file on disk? Use the &quot;Service Account Credentials JSON file path&quot; field under Advanced.");
+    const tooltipHtml = ` <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">${tipParts.join("<br>")}</span></span>`;
+    let input;
     if (isBlob) {
       input = `<textarea id="pf-${esc(key)}" rows="4" placeholder='{ "type": "service_account", "project_id": "...", ... }' class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>`;
-      hint = 'Paste the JSON itself to keep the credentials inside the encrypted config - no plaintext key file left on disk. Prefer a file on disk instead? Use the "Service Account Credentials JSON file path" field under Advanced.';
     } else if (opt.Examples && opt.Examples.length) {
       const opts = opt.Examples.map((ex) => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join("");
       input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
@@ -518,9 +518,8 @@
       const def = opt.DefaultStr !== void 0 ? opt.DefaultStr : opt.Default !== void 0 ? String(opt.Default) : "";
       input = `<input type="${t}" id="pf-${esc(key)}" value="${esc(def)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm">`;
     }
-    const hintHTML = hint ? `<p class="mt-1 text-xs text-slate-500">${esc(hint)}</p>` : "";
     return `<div>
-    <label class="mb-1 block text-sm font-semibold">${esc(label)}${tooltipHtml}</label>${input}${hintHTML}</div>`;
+    <label class="mb-1 block text-sm font-semibold">${esc(label)}${tooltipHtml}</label>${input}</div>`;
   }
   function addCustomKey() {
     const row = document.createElement("div");
