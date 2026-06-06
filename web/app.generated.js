@@ -1297,7 +1297,17 @@
   if (!document.getElementById("rw-dragula-style")) {
     const s = document.createElement("style");
     s.id = "rw-dragula-style";
-    s.textContent = `.gu-mirror{position:fixed!important;margin:0!important;z-index:9999!important;opacity:.8;cursor:move}.gu-hide{display:none!important}.gu-unselectable{user-select:none!important}.gu-transit{opacity:.2}`;
+    s.textContent = [
+      ".gu-mirror{position:fixed!important;margin:0!important;z-index:9999!important;opacity:.95;cursor:grabbing!important;",
+      "box-shadow:0 6px 20px rgba(0,0,0,.18);border-radius:6px;background:#fff;border:1px solid #e2e8f0}",
+      ".gu-hide{display:none!important}",
+      ".gu-unselectable{user-select:none!important}",
+      ".gu-transit{opacity:.5;border:2px dashed #475569!important;border-radius:4px}",
+      ".rw-drag-item{cursor:grab}",
+      ".rw-drag-item:active{cursor:grabbing}",
+      ".rw-drag-active{background:#f1f5f9;border-radius:6px;transition:background .15s}",
+      ".rw-drag-active .rw-drag-item:not(.gu-transit){opacity:.55;transition:opacity .1s}"
+    ].join("");
     document.head.appendChild(s);
   }
   function renderQueuesList() {
@@ -1375,7 +1385,7 @@
       const job = state.jobs.find((j) => j.id === jid);
       const name = job ? job.name : jid;
       const item = document.createElement("div");
-      item.className = "flex items-center gap-2 py-1.5 border-b border-slate-100 cursor-move select-none";
+      item.className = "rw-drag-item flex items-center gap-2 py-1.5 border-b border-slate-100 select-none";
       item.dataset.jobId = jid;
       item.innerHTML = `
       <span class="text-slate-300 text-base leading-none" title="Drag to reorder">⠿</span>
@@ -1389,6 +1399,8 @@
     _drake = (0, import_dragula.default)([list], {
       moves: (el, _src, handle) => !handle.classList.contains("qf-remove-btn")
     });
+    _drake.on("drag", () => list.classList.add("rw-drag-active"));
+    _drake.on("dragend", () => list.classList.remove("rw-drag-active"));
   }
   function getQueueJobIds() {
     return Array.from(document.getElementById("qf-jobs-list").children).map((el) => el.dataset.jobId);
