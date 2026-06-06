@@ -213,3 +213,61 @@ cd e2e && npm test
 
 All 8 local tests must pass before pushing. Do not skip this step or report
 a UI change as complete without a green test run.
+
+## Claude Code Web — screenshots for UI changes
+
+After completing any UI change or new feature, take screenshots and present
+them to the user. Use the e2e test infrastructure to spin up a live server
+instance, then drive it with Playwright to capture the relevant screens.
+
+**Screenshot script pattern** (run from the `e2e/` directory so
+`@playwright/test` resolves correctly):
+
+```js
+// screenshot.mjs — run with: node screenshot.mjs (from e2e/)
+import { chromium } from '@playwright/test';
+import { spawn } from 'child_process';
+import { execSync } from 'child_process';
+import { join } from 'path';
+
+const REPO = new URL('..', import.meta.url).pathname;
+
+// Build fixture config
+const fixture = JSON.parse(
+  execSync(join(REPO, 'e2e/.fixtures'), { cwd: REPO }).toString().trim()
+);
+
+const server = spawn(join(REPO, 'e2e/.server'), [
+  '--config', fixture.configPath,
+  '--key-file', fixture.passphrasePath,
+  '--port', '0', '--bind', '127.0.0.1',
+]);
+const url = await new Promise((resolve, reject) => {
+  const t = setTimeout(() => reject(new Error('Server timeout')), 15000);
+  server.stdout.on('data', d => {
+    const m = d.toString().match(/listening on (http:\/\/\S+)/);
+    if (m) { clearTimeout(t); resolve(m[1]); }
+  });
+});
+
+const browser = await chromium.launch();
+const page = await browser.newPage();
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.goto(url);
+
+// --- navigate and screenshot ---
+await page.screenshot({ path: '/tmp/screenshot.png' });
+
+await browser.close();
+server.kill();
+```
+
+Build the fixture binary once per session before running the script:
+
+```bash
+cd /path/to/repo
+go build -o e2e/.server .
+go build -o e2e/.fixtures ./e2e/testsetup
+```
+
+Present all screenshots to the user with `SendUserFile` after capturing them.
