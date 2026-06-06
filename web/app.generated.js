@@ -510,11 +510,16 @@
     if (isBlob) {
       const ph = isServiceAccount ? '{ "type": "service_account", "project_id": "...", ... }' : '{"access_token":"...","token_type":"Bearer","refresh_token":"...","expiry":"..."}';
       input = `<textarea id="pf-${esc(key)}" rows="3" placeholder='${ph}' class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>`;
-    } else if (opt.Examples && opt.Examples.length) {
+    } else if (opt.Examples && opt.Examples.length > 1) {
       const opts = opt.Examples.map((ex) => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join("");
       input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
     } else if (opt.Type === "bool") {
-      input = `<label class="toggle py-1"><input type="checkbox" id="pf-${esc(key)}" class="toggle-cb"><span class="toggle-track"></span></label>`;
+      const def = opt.DefaultStr !== void 0 ? opt.DefaultStr : opt.Default !== void 0 ? String(opt.Default) : "";
+      const checked = def === "true" ? " checked" : "";
+      return `<div class="flex items-center gap-3 py-1">
+      <label class="toggle shrink-0"><input type="checkbox" id="pf-${esc(key)}" class="toggle-cb"${checked}><span class="toggle-track"></span></label>
+      <label for="pf-${esc(key)}" class="text-sm font-semibold cursor-pointer">${esc(label)}${tooltipHtml}</label>
+    </div>`;
     } else {
       const t = opt.Type === "int" ? "number" : "text";
       const def = opt.DefaultStr !== void 0 ? opt.DefaultStr : opt.Default !== void 0 ? String(opt.Default) : "";
