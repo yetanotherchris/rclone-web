@@ -148,7 +148,7 @@ export function renderProviderFields() {
   if (required.length) {
     fieldsEl.innerHTML = required.map(o => backendFieldHTML(o, prefix)).join('');
   } else {
-    fieldsEl.innerHTML = '<p class="text-sm text-slate-400">This backend needs no required fields. Use custom keys below.</p>';
+    fieldsEl.innerHTML = '<p class="text-sm text-slate-400">This backend has no required fields. Check the Advanced tab for options or add custom keys there.</p>';
   }
 
   if (advanced.length) {
