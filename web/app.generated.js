@@ -474,6 +474,8 @@
     if (type === "drive") {
       const fileIdx = required.findIndex((o) => o.Name === "service_account_file");
       if (fileIdx !== -1) advanced.unshift(...required.splice(fileIdx, 1));
+      const token = options.find((o) => o.Name === "token");
+      if (token && !required.includes(token)) required.unshift(token);
       const blob = options.find((o) => o.Name === "service_account_credentials");
       if (blob && !required.includes(blob)) required.unshift(blob);
     }
@@ -503,8 +505,8 @@
     const isServiceAccount = key === "service_account_credentials";
     const isToken = key === "token";
     const isBlob = isServiceAccount || isToken;
-    if (isServiceAccount) tipParts.unshift("Paste the JSON itself to keep credentials inside the encrypted config - no plaintext key file left on disk. Prefer a file on disk? Use the &quot;Service Account Credentials JSON file path&quot; field under Advanced.");
-    if (isToken) tipParts.unshift('Paste the OAuth token JSON blob ({"access_token":"...","refresh_token":"...",...}) obtained from rclone config.');
+    if (isServiceAccount) tipParts.unshift("Alternative to OAuth token - use for service accounts. Leave blank if using an OAuth token. Prefer a file on disk? Use the &quot;Service Account Credentials JSON file path&quot; field under Advanced.");
+    if (isToken) tipParts.unshift("OAuth token JSON blob obtained from rclone config. Leave blank if using a service account instead.");
     const tooltipHtml = ` <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">${tipParts.join("<br>")}</span></span>`;
     let input;
     if (isBlob) {
