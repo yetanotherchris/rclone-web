@@ -244,7 +244,7 @@
                   <select id="f-sprov" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none"></select>
                 </div>
                 <div>
-                  <label class="mb-1 block text-sm font-semibold">Source path <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">Can be a file or a folder. A folder's contents are copied, not the folder itself.</span></span></label>
+                  <label class="mb-1 block text-sm font-semibold">Source path <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">Can be a file or a folder. A folder's contents are copied, not the folder itself.<br><span style="opacity:0.75">Windows: D:/docs/ or D:/docs/file.txt<br>Linux/macOS: /home/user/docs/ or /mnt/data/file.txt</span></span></span></label>
                   <input id="f-spath" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none" />
                 </div>
                 <div id="dest-prov-field">
@@ -252,7 +252,7 @@
                   <select id="f-dprov" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none"></select>
                 </div>
                 <div id="dest-path-field">
-                  <label class="mb-1 block text-sm font-semibold">Destination path <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">Always treated as a folder. A trailing name (e.g. "bucketname/readme.md") creates a folder of that name - copy/sync/move can't rename a file.</span></span></label>
+                  <label class="mb-1 block text-sm font-semibold">Destination path <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">Always treated as a folder - copy/sync/move can't rename a file.<br><span style="opacity:0.75">Windows: D:/backups/ or D:/backups/subfolder/<br>Linux/macOS: /mnt/backup/ or /home/user/backup/</span></span></span></label>
                   <input id="f-dpath" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none" />
                 </div>
               </div>

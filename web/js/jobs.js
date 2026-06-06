@@ -102,12 +102,8 @@ export function toggleDestFields() {
 export function updatePathPlaceholders() {
   const sLocal = isLocalProvider(document.getElementById('f-sprov').value);
   const dLocal = isLocalProvider(document.getElementById('f-dprov').value);
-  document.getElementById('f-spath').placeholder = sLocal
-    ? 'D:/folder/  or  D:/folder/file.txt'
-    : 'bucketname/folder/  or  bucketname/folder/file.txt';
-  document.getElementById('f-dpath').placeholder = dLocal
-    ? 'D:/backups/'
-    : 'bucketname/  or  bucketname/folder1/folder2/';
+  document.getElementById('f-spath').placeholder = '';
+  document.getElementById('f-dpath').placeholder = '';
 }
 
 export function updateCmdPreview() {
