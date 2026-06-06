@@ -189,3 +189,27 @@ the same name. When `.env.local` is present, global-setup adds a `b2` provider +
 asserts `success · exit 0`, then verifies the dst path lists the copied files.
 Global-teardown purges both sub-paths afterward. The test only ever touches the
 `<bucket>/<prefix>/{src,dst}` paths.
+
+## Claude Code Web — testing instructions
+
+When running inside a **Claude Code Web container** (i.e. the remote execution
+environment at code.claude.com), always run the Playwright e2e tests before
+marking any UI change as complete. The container has Node.js, rclone, and
+Playwright's Chromium shell pre-installed (or install them on first use via the
+steps below), so the full local suite is hermetic and fast.
+
+**One-time setup** (safe to re-run; skips if already done):
+
+```bash
+which rclone || (curl -s https://downloads.rclone.org/rclone-current-linux-amd64.zip -o /tmp/rclone.zip && unzip -q /tmp/rclone.zip -d /tmp/rclone && cp /tmp/rclone/rclone-*/rclone /usr/local/bin/)
+cd e2e && npm install && npx playwright install chromium
+```
+
+**Run the tests:**
+
+```bash
+cd e2e && npm test
+```
+
+All 8 local tests must pass before pushing. Do not skip this step or report
+a UI change as complete without a green test run.
