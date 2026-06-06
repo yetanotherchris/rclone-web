@@ -184,7 +184,7 @@ New item **Queues** added between Jobs and Providers.
 
 Table with columns: Name | Jobs (count) | On Failure | Last Run | Actions.
 
-Actions per row: **View** · **Edit** · **Delete** · **Run**.
+Actions per row: **View** · **Edit** · **Delete** · **Run**. No dry-run for queues.
 
 - **View** → navigates to the queue run screen for the latest in-memory run (or a
   "not yet run" placeholder if none).
@@ -259,8 +259,8 @@ Jobs
 Queues
 ┌──────────────────────────────────────────────────────────┐
 │ Name             Jobs  Last Run         Actions           │
-│ Nightly Backup   3     ✓ 2 hours ago    [View] [Run]      │
-│ Weekly Archive   5     — never          [View] [Run]      │
+│ Nightly Backup   3     ✓ 2 hours ago    [View] [Run]     │
+│ Weekly Archive   5     — never          [View] [Run]     │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -271,7 +271,8 @@ Actions:
 - **View** → queue run screen (latest in-memory run, or "not yet run" message)
 - **Run** → `POST /api/queues/{id}/run`, then navigate to queue run screen
 
-The Queues section is only rendered if at least one queue is defined.
+No dry-run button for queues. The Queues section is only rendered if at least
+one queue is defined.
 
 ---
 
@@ -300,5 +301,4 @@ finishes or the queue is stopped.
 - Scheduled / cron queues
 - Parallel job execution within a queue
 - Persisted queue run history
-- Dry-run mode for full queues (individual jobs support it; queue does not)
 - Notifications on queue completion
