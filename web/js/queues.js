@@ -1,11 +1,19 @@
 /* rclone-web — queues list, queue form, queue run detail, queue logs. */
 'use strict';
 
-import Sortable from 'sortablejs';
+import dragula from 'dragula';
 import { state } from './state.js';
 import { api } from './api.js';
 import { esc, showError, clearError } from './util.js';
 import { showScreen } from './screens.js';
+
+// Dragula mirror/transit styles (no external CSS file needed).
+if (!document.getElementById('rw-dragula-style')) {
+  const s = document.createElement('style');
+  s.id = 'rw-dragula-style';
+  s.textContent = `.gu-mirror{position:fixed!important;margin:0!important;z-index:9999!important;opacity:.8;cursor:move}.gu-hide{display:none!important}.gu-unselectable{user-select:none!important}.gu-transit{opacity:.2}`;
+  document.head.appendChild(s);
+}
 
 // ---- Queues list ----
 
@@ -83,15 +91,15 @@ export function openQueueForm(queueId) {
   showScreen('queueform');
 }
 
-let _jobListSortable = null;
+let _drake = null;
 
 function renderQueueJobList(jobIds) {
   const list = document.getElementById('qf-jobs-list');
   list.innerHTML = '';
 
-  if (_jobListSortable) {
-    _jobListSortable.destroy();
-    _jobListSortable = null;
+  if (_drake) {
+    _drake.destroy();
+    _drake = null;
   }
 
   jobIds.forEach((jid, idx) => {
@@ -111,10 +119,10 @@ function renderQueueJobList(jobIds) {
     btn.addEventListener('click', () => removeQueueJob(Number(btn.dataset.idx)))
   );
 
-  _jobListSortable = new Sortable(list, {
-    animation: 150,
-    ghostClass: 'bg-slate-200',
-    chosenClass: 'opacity-50',
+  // Dragula moves the actual DOM elements on drop, so getQueueJobIds() reads the
+  // updated order directly — no re-render needed.
+  _drake = dragula([list], {
+    moves: (el, _src, handle) => !handle.classList.contains('qf-remove-btn'),
   });
 }
 

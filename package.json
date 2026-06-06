@@ -7,6 +7,6 @@
     "tailwindcss": "^3.4.17"
   },
   "dependencies": {
-    "sortablejs": "^1.15.7"
+    "dragula": "^3.7.3"
   }
 }
