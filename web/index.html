@@ -218,29 +218,30 @@
                     <input id="f-extra" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none" placeholder="--exclude *.tmp" />
                   </div>
                 </div>
-                <aside class="w-full shrink-0 rounded-xl border border-slate-200 bg-slate-50 p-5 lg:w-72">
-                  <h3 class="mb-1 text-sm font-semibold text-slate-700">Common extra args</h3>
-                  <p class="mb-3 text-xs text-slate-500">Click a flag to add it to the Extra args field.</p>
-                  <ul id="flag-help" class="flex flex-wrap gap-2 text-sm">
-                    <li><span class="tt"><button type="button" data-flag="--dry-run" class="font-mono text-brand-600 hover:underline">--dry-run</button><span class="tt-tip">Trial run, make no changes</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--fast-list" class="font-mono text-brand-600 hover:underline">--fast-list</button><span class="tt-tip">Fewer transactions, more memory</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--ignore-existing" class="font-mono text-brand-600 hover:underline">--ignore-existing</button><span class="tt-tip">Skip files already on dest</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--update" class="font-mono text-brand-600 hover:underline">--update</button><span class="tt-tip">Skip files newer on dest</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--checksum" class="font-mono text-brand-600 hover:underline">--checksum</button><span class="tt-tip">Compare by checksum</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--size-only" class="font-mono text-brand-600 hover:underline">--size-only</button><span class="tt-tip">Compare by size only</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--no-traverse" class="font-mono text-brand-600 hover:underline">--no-traverse</button><span class="tt-tip">Don't list dest first</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--track-renames" class="font-mono text-brand-600 hover:underline">--track-renames</button><span class="tt-tip">Detect moved files</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--create-empty-src-dirs" class="font-mono text-brand-600 hover:underline">--create-empty-src-dirs</button><span class="tt-tip">Recreate empty dirs on dest</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--delete-excluded" class="font-mono text-brand-600 hover:underline">--delete-excluded</button><span class="tt-tip">Delete excluded files from dest</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--immutable" class="font-mono text-brand-600 hover:underline">--immutable</button><span class="tt-tip">Do not modify existing files</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--transfers {N}" class="font-mono text-brand-600 hover:underline">--transfers N</button><span class="tt-tip">Parallel transfers (e.g. 8)</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--checkers {N}" class="font-mono text-brand-600 hover:underline">--checkers N</button><span class="tt-tip">Parallel checkers (e.g. 16)</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--bwlimit {RATE}" class="font-mono text-brand-600 hover:underline">--bwlimit RATE</button><span class="tt-tip">Bandwidth limit (e.g. 10M)</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--exclude {PATTERN}" class="font-mono text-brand-600 hover:underline">--exclude PATTERN</button><span class="tt-tip">Exclude matching files</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--include {PATTERN}" class="font-mono text-brand-600 hover:underline">--include PATTERN</button><span class="tt-tip">Include matching files</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--max-age {DURATION}" class="font-mono text-brand-600 hover:underline">--max-age DURATION</button><span class="tt-tip">Only files younger than (e.g. 24h)</span></span></li>
-                    <li><span class="tt"><button type="button" data-flag="--order-by {SORT}" class="font-mono text-brand-600 hover:underline">--order-by SORT</button><span class="tt-tip">Order transfers (e.g. size,desc)</span></span></li>
-                  </ul>
+                <aside class="w-full shrink-0 rounded-xl border border-slate-200 bg-slate-50 p-5 lg:w-80">
+                  <h3 class="mb-3 text-sm font-semibold text-slate-700">Common extra args</h3>
+                  <table id="flag-help" class="w-full text-xs">
+                    <tbody class="divide-y divide-slate-100">
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--dry-run" class="font-mono text-brand-600 hover:underline text-left">--dry-run</button></td><td class="py-1 text-slate-500">Trial run, make no changes</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--fast-list" class="font-mono text-brand-600 hover:underline text-left">--fast-list</button></td><td class="py-1 text-slate-500">Fewer transactions, more memory</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--ignore-existing" class="font-mono text-brand-600 hover:underline text-left">--ignore-existing</button></td><td class="py-1 text-slate-500">Skip files already on dest</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--update" class="font-mono text-brand-600 hover:underline text-left">--update</button></td><td class="py-1 text-slate-500">Skip files newer on dest</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--checksum" class="font-mono text-brand-600 hover:underline text-left">--checksum</button></td><td class="py-1 text-slate-500">Compare by checksum</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--size-only" class="font-mono text-brand-600 hover:underline text-left">--size-only</button></td><td class="py-1 text-slate-500">Compare by size only</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--no-traverse" class="font-mono text-brand-600 hover:underline text-left">--no-traverse</button></td><td class="py-1 text-slate-500">Don't list dest first</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--track-renames" class="font-mono text-brand-600 hover:underline text-left">--track-renames</button></td><td class="py-1 text-slate-500">Detect moved files</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--create-empty-src-dirs" class="font-mono text-brand-600 hover:underline text-left">--create-empty-src-dirs</button></td><td class="py-1 text-slate-500">Recreate empty dirs on dest</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--delete-excluded" class="font-mono text-brand-600 hover:underline text-left">--delete-excluded</button></td><td class="py-1 text-slate-500">Delete excluded files from dest</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--immutable" class="font-mono text-brand-600 hover:underline text-left">--immutable</button></td><td class="py-1 text-slate-500">Do not modify existing files</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--transfers {N}" class="font-mono text-brand-600 hover:underline text-left">--transfers N</button></td><td class="py-1 text-slate-500">Parallel transfers (e.g. 8)</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--checkers {N}" class="font-mono text-brand-600 hover:underline text-left">--checkers N</button></td><td class="py-1 text-slate-500">Parallel checkers (e.g. 16)</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--bwlimit {RATE}" class="font-mono text-brand-600 hover:underline text-left">--bwlimit RATE</button></td><td class="py-1 text-slate-500">Bandwidth limit (e.g. 10M)</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--exclude {PATTERN}" class="font-mono text-brand-600 hover:underline text-left">--exclude PATTERN</button></td><td class="py-1 text-slate-500">Exclude matching files</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--include {PATTERN}" class="font-mono text-brand-600 hover:underline text-left">--include PATTERN</button></td><td class="py-1 text-slate-500">Include matching files</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--max-age {DURATION}" class="font-mono text-brand-600 hover:underline text-left">--max-age DURATION</button></td><td class="py-1 text-slate-500">Only files younger than (e.g. 24h)</td></tr>
+                      <tr><td class="py-1 pr-3"><button type="button" data-flag="--order-by {SORT}" class="font-mono text-brand-600 hover:underline text-left">--order-by SORT</button></td><td class="py-1 text-slate-500">Order transfers (e.g. size,desc)</td></tr>
+                    </tbody>
+                  </table>
                   <p class="mt-3 text-xs text-slate-400">See <span class="font-mono">rclone help flags</span> for the full list.</p>
                 </aside>
               </div>

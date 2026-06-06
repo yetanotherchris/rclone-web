@@ -157,12 +157,13 @@ function backendFieldHTML(opt, prefix) {
   const helpLines = opt.Help ? opt.Help.trim().split('\n').map(l => l.trim()).filter(Boolean) : [];
   const label = helpLines[0] || key;
   const extraHelp = helpLines.slice(1).join(' ');
-  const tooltipHtml = extraHelp
-    ? ` <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">${esc(extraHelp)}</span></span>`
-    : '';
+  const envKey = prefix + key.toUpperCase();
+  const tipParts = [];
+  if (extraHelp) tipParts.push(esc(extraHelp));
+  tipParts.push(`<span style="opacity:0.65;font-style:italic">${esc(envKey)}</span>`);
+  const tooltipHtml = ` <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">${tipParts.join('<br>')}</span></span>`;
   const isPassword = opt.IsPassword || opt.Sensitive;
   const isBlob = key === 'service_account_credentials';
-  const envKey = prefix + key.toUpperCase();
   let input, hint = '';
 
   if (isBlob) {
@@ -181,9 +182,7 @@ function backendFieldHTML(opt, prefix) {
 
   const hintHTML = hint ? `<p class="mt-1 text-xs text-slate-500">${esc(hint)}</p>` : '';
   return `<div>
-    <label class="mb-1 block text-sm font-medium">${esc(label)}${tooltipHtml}
-      <span class="ml-1 font-mono text-xs text-slate-400">${esc(envKey)}</span>
-    </label>${input}${hintHTML}</div>`;
+    <label class="mb-1 block text-sm font-medium">${esc(label)}${tooltipHtml}</label>${input}${hintHTML}</div>`;
 }
 
 export function addCustomKey() {
