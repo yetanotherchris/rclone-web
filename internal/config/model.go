@@ -33,7 +33,6 @@ type Job struct {
 	DestPath       string `yaml:"dest_path,omitempty" json:"dest_path,omitempty"`
 	Command        string `yaml:"command,omitempty" json:"command,omitempty"`
 	ExtraArgs      string `yaml:"extra_args,omitempty" json:"extra_args,omitempty"`
-	Enabled        bool   `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 }
 
 // DisplayName returns a human-readable label for the job.

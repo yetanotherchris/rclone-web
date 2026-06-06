@@ -280,7 +280,6 @@
     document.getElementById("f-id").value = job ? job.id : "";
     document.getElementById("f-name").value = job ? job.name || "" : "";
     document.getElementById("f-cmd").value = job ? job.command : "copy";
-    document.getElementById("f-enabled").checked = job ? job.enabled : true;
     document.getElementById("f-spath").value = job ? job.source_path || "" : "";
     document.getElementById("f-dpath").value = job ? job.dest_path || "" : "";
     document.getElementById("f-extra").value = job && job.extra_args && job.extra_args !== "undefined" ? job.extra_args : "";
@@ -298,7 +297,7 @@
   function populateProviderSelects() {
     ["f-sprov", "f-dprov"].forEach((id) => {
       const sel = document.getElementById(id);
-      sel.innerHTML = '<option value="">(none / local path)</option>';
+      sel.innerHTML = '<option value="">Local path</option>';
       state.providers.forEach((p) => {
         const opt = document.createElement("option");
         opt.value = p.name;
@@ -340,7 +339,6 @@
       id,
       name: document.getElementById("f-name").value.trim(),
       command: document.getElementById("f-cmd").value,
-      enabled: document.getElementById("f-enabled").checked,
       source_provider: document.getElementById("f-sprov").value,
       source_path: document.getElementById("f-spath").value.trim(),
       dest_provider: document.getElementById("f-dprov").value,

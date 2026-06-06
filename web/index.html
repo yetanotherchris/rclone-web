@@ -90,17 +90,17 @@
 .flag-btn {
   display: inline-block;
   background: #f1f5f9;
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
-  padding: 2px 8px;
+  padding: 3px 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.7rem;
-  color: #475569;
+  font-size: 0.75rem;
+  color: #334155;
   cursor: pointer;
   white-space: nowrap;
   text-align: left;
-  border: none;
 }
-.flag-btn:hover { background: #e2e8f0; color: #1e293b; }
+.flag-btn:hover { background: #e2e8f0; border-color: #94a3b8; color: #0f172a; }
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800">
@@ -238,13 +238,7 @@
                     <option>copy</option><option>sync</option><option>move</option><option>check</option><option>lsf</option>
                   </select>
                 </div>
-                <div class="flex items-end pb-2">
-                  <label class="toggle text-sm font-semibold">
-                    <input type="checkbox" id="f-enabled" class="toggle-cb" checked />
-                    <span class="toggle-track"></span>
-                    <span>Enabled</span>
-                  </label>
-                </div>
+
                 <div>
                   <label class="mb-1 block text-sm font-semibold">Source provider</label>
                   <select id="f-sprov" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none"></select>
@@ -276,7 +270,7 @@
               </div>
               <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
                 <h3 class="mb-3 text-sm font-semibold text-slate-700">Common extra args</h3>
-                <table id="flag-help" class="w-full text-xs">
+                <table id="flag-help" class="w-full text-sm">
                   <tbody class="divide-y divide-slate-100">
                     <tr><td class="py-1 pr-3"><button type="button" data-flag="--dry-run" class="flag-btn">--dry-run</button></td><td class="py-1 text-slate-500">Trial run, make no changes</td></tr>
                     <tr><td class="py-1 pr-3"><button type="button" data-flag="--fast-list" class="flag-btn">--fast-list</button></td><td class="py-1 text-slate-500">Fewer transactions, more memory</td></tr>

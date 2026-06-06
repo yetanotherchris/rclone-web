@@ -94,7 +94,6 @@ func main() {
 					DestProvider:   "local",
 					DestPath:       dstDir,
 					Command:        "copy",
-					Enabled:        true,
 				},
 			},
 		},
@@ -120,7 +119,6 @@ func main() {
 			SourcePath:     src,
 			Command:        command,
 			ExtraArgs:      extraArgs,
-			Enabled:        true,
 		}
 		cj := cmdJob{ID: id, Name: name, Command: command, SrcDir: src, Destructive: destructive}
 		if !oneSided {
@@ -179,7 +177,6 @@ func main() {
 				DestProvider:   "b2",
 				DestPath:       dstBucket + "/" + prefix + "/dst",
 				Command:        "copy",
-				Enabled:        true,
 			})
 			out.CloudEnabled = true
 			out.B2SrcBucket = srcBucket
