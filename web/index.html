@@ -154,7 +154,7 @@
           <span>≡</span> Queues
         </button>
         <button data-nav="providers" class="nav-btn flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600">
-          <span>☁</span> Providers
+          <span>◈</span> Providers
         </button>
       </nav>
       <div class="border-t border-slate-200 p-3 text-xs text-slate-500">
@@ -460,12 +460,9 @@
               <label class="mb-1 block text-sm font-semibold">Name</label>
               <input id="qf-name" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none" />
             </div>
-            <div>
-              <label class="mb-1 block text-sm font-semibold">On failure</label>
-              <select id="qf-on-failure" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none">
-                <option value="">Continue on failure (default)</option>
-                <option value="stop">Stop on first failure</option>
-              </select>
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="qf-on-failure" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" checked />
+              <label for="qf-on-failure" class="text-sm font-semibold">Continue on failure</label>
             </div>
             <div>
               <label class="mb-2 block text-sm font-semibold">Jobs (in order)</label>

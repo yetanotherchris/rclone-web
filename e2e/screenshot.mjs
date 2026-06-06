@@ -1,23 +1,17 @@
-// screenshot.mjs — run with: node screenshot.mjs (from e2e/)
 import { chromium } from '@playwright/test';
 import { spawn } from 'child_process';
 import { execSync } from 'child_process';
-import { join } from 'path';
 
-const REPO = new URL('..', import.meta.url).pathname;
+const REPO = '/home/user/rclone-web';
+const fixture = JSON.parse(execSync(`${REPO}/e2e/.fixtures`, { cwd: REPO }).toString().trim());
 
-const fixture = JSON.parse(
-  execSync(join(REPO, 'e2e/.fixtures'), { cwd: REPO }).toString().trim()
-);
-
-const server = spawn(join(REPO, 'e2e/.server'), [
+const server = spawn(`${REPO}/e2e/.server`, [
   '--config', fixture.configPath,
   '--key-file', fixture.passphrasePath,
   '--port', '0', '--bind', '127.0.0.1',
 ]);
-
 const url = await new Promise((resolve, reject) => {
-  const t = setTimeout(() => reject(new Error('Server timeout')), 15000);
+  const t = setTimeout(() => reject(new Error('timeout')), 15000);
   server.stdout.on('data', d => {
     const m = d.toString().match(/listening on (http:\/\/\S+)/);
     if (m) { clearTimeout(t); resolve(m[1]); }
@@ -28,45 +22,33 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.setViewportSize({ width: 1280, height: 900 });
 await page.goto(url);
-await page.waitForSelector('#app:not(.hidden)', { timeout: 10000 });
 
-// Screenshot: Dashboard (shows Queues section)
-await page.screenshot({ path: '/tmp/ss-dashboard.png' });
+// Wait for the app JS to render (dashboard section becomes visible)
+await page.waitForSelector('[data-screen="dashboard"]:not(.hidden)', { timeout: 10000 });
 
-// Screenshot: Queues list
-await page.locator('[data-nav="queues"]').click();
-await page.waitForSelector('#queues-tbody tr', { timeout: 5000 });
-await page.screenshot({ path: '/tmp/ss-queues-list.png' });
+// Screenshot 1: sidebar nav
+await page.screenshot({ path: '/tmp/ss-nav.png' });
 
-// Screenshot: Queue form (new)
-await page.locator('#new-queue-btn').click();
-await page.waitForSelector('[data-screen="queueform"]:not(.hidden)', { timeout: 3000 });
-await page.screenshot({ path: '/tmp/ss-queue-form.png' });
+// Screenshot 2: queue form with checkbox and drag handles
+await page.click('[data-nav="queues"]');
+await page.waitForSelector('[data-screen="queues"]:not(.hidden)');
+await page.click('#new-queue-btn');
+await page.waitForSelector('[data-screen="queueform"]:not(.hidden)');
 
-// Go back and run the queue
-await page.locator('[data-nav="queues"]').click();
-await page.waitForSelector('#queues-tbody tr', { timeout: 5000 });
-await page.locator('#queues-tbody .run-queue-btn').first().click();
-await page.waitForSelector('[data-screen="queuerun"]:not(.hidden)', { timeout: 5000 });
-// Wait briefly for some progress
-await page.waitForTimeout(500);
-await page.screenshot({ path: '/tmp/ss-queue-run.png' });
-
-// Wait for completion
-await page.waitForFunction(
-  () => document.getElementById('queuerun-status-badge')?.textContent?.includes('success'),
-  { timeout: 20000 }
-);
-await page.screenshot({ path: '/tmp/ss-queue-run-done.png' });
-
-// Click View logs on first job
-const viewLogsBtns = await page.locator('.view-logs-btn').all();
-if (viewLogsBtns.length > 0) {
-  await viewLogsBtns[0].click();
-  await page.waitForSelector('[data-screen="queuelogs"]:not(.hidden)', { timeout: 3000 });
-  await page.screenshot({ path: '/tmp/ss-queue-logs.png' });
+// Add two jobs so the drag handle is visible
+const sel = page.locator('#qf-add-job-select');
+const opts = await sel.locator('option').all();
+if (opts.length > 1) {
+  await sel.selectOption({ index: 1 });
+  await page.click('#qf-add-job-btn');
 }
+if (opts.length > 2) {
+  await sel.selectOption({ index: 2 });
+  await page.click('#qf-add-job-btn');
+}
+
+await page.screenshot({ path: '/tmp/ss-queueform.png' });
 
 await browser.close();
 server.kill();
-console.log('Screenshots saved to /tmp/ss-*.png');
+console.log('done');
