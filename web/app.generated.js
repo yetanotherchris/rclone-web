@@ -423,8 +423,20 @@
     const lower = k.toLowerCase();
     return lower.includes("key") || lower.includes("secret") || lower.includes("password") || lower.includes("pass") || lower.includes("token");
   }
+  function switchProvTab(tabName) {
+    document.querySelectorAll(".prov-tab").forEach((t) => t.classList.add("hidden"));
+    document.getElementById("ptab-" + tabName).classList.remove("hidden");
+    document.querySelectorAll(".prov-tab-btn").forEach((btn) => {
+      const active = btn.dataset.tab === tabName;
+      btn.classList.toggle("border-brand-600", active);
+      btn.classList.toggle("text-brand-700", active);
+      btn.classList.toggle("border-transparent", !active);
+      btn.classList.toggle("text-slate-500", !active);
+    });
+  }
   function openProvForm(name) {
     state.editingProvName = name;
+    switchProvTab("details");
     const prov = name ? state.providers.find((p) => p.name === name) : null;
     document.getElementById("provform-title").textContent = prov ? "Edit provider" : "New provider";
     document.getElementById("p-name").value = prov ? prov.name : "";
@@ -485,10 +497,8 @@
     }
     if (advanced.length) {
       advEl.innerHTML = advanced.map((o) => backendFieldHTML(o, prefix)).join("");
-      document.getElementById("p-advanced").classList.remove("hidden");
     } else {
-      advEl.innerHTML = '<p class="text-sm text-slate-400">No advanced options.</p>';
-      document.getElementById("p-advanced").classList.add("hidden");
+      advEl.innerHTML = '<p class="text-sm text-slate-400">No advanced options for this backend.</p>';
     }
   }
   function backendFieldHTML(opt, prefix) {
@@ -706,6 +716,9 @@
     });
     document.querySelectorAll(".job-tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => switchJobTab(btn.dataset.tab));
+    });
+    document.querySelectorAll(".prov-tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchProvTab(btn.dataset.tab));
     });
     document.querySelectorAll(".back-btn").forEach((btn) => {
       btn.addEventListener("click", () => showScreen(btn.dataset.back));

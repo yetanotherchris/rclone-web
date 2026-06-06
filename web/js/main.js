@@ -12,7 +12,7 @@ import {
   saveJob, openJobForm, toggleDestFields, updateCmdPreview, updatePathPlaceholders, switchJobTab,
 } from './jobs.js';
 import {
-  saveProvider, openProvForm, addCustomKey, renderProviderFields,
+  saveProvider, openProvForm, addCustomKey, renderProviderFields, switchProvTab,
 } from './providers.js';
 import { proceedWithRun, stopRun } from './runs.js';
 
@@ -25,6 +25,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Job form tabs
   document.querySelectorAll('.job-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => switchJobTab(btn.dataset.tab));
+  });
+
+  // Provider form tabs
+  document.querySelectorAll('.prov-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchProvTab(btn.dataset.tab));
   });
 
   // Back buttons
