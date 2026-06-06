@@ -500,19 +500,23 @@
     if (extraHelp) tipParts.push(esc(extraHelp));
     tipParts.push(`<span style="opacity:0.65;font-style:italic">${esc(envKey)}</span>`);
     const isPassword = opt.IsPassword || opt.Sensitive;
-    const isBlob = key === "service_account_credentials";
-    if (isBlob) tipParts.unshift("Paste the JSON itself to keep credentials inside the encrypted config - no plaintext key file left on disk. Prefer a file on disk? Use the &quot;Service Account Credentials JSON file path&quot; field under Advanced.");
+    const isServiceAccount = key === "service_account_credentials";
+    const isToken = key === "token";
+    const isBlob = isServiceAccount || isToken;
+    if (isServiceAccount) tipParts.unshift("Paste the JSON itself to keep credentials inside the encrypted config - no plaintext key file left on disk. Prefer a file on disk? Use the &quot;Service Account Credentials JSON file path&quot; field under Advanced.");
+    if (isToken) tipParts.unshift('Paste the OAuth token JSON blob ({"access_token":"...","refresh_token":"...",...}) obtained from rclone config.');
     const tooltipHtml = ` <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">${tipParts.join("<br>")}</span></span>`;
     let input;
     if (isBlob) {
-      input = `<textarea id="pf-${esc(key)}" rows="4" placeholder='{ "type": "service_account", "project_id": "...", ... }' class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>`;
+      const ph = isServiceAccount ? '{ "type": "service_account", "project_id": "...", ... }' : '{"access_token":"...","token_type":"Bearer","refresh_token":"...","expiry":"..."}';
+      input = `<textarea id="pf-${esc(key)}" rows="3" placeholder='${ph}' class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>`;
     } else if (opt.Examples && opt.Examples.length) {
       const opts = opt.Examples.map((ex) => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join("");
       input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
     } else if (opt.Type === "bool") {
       input = `<label class="toggle py-1"><input type="checkbox" id="pf-${esc(key)}" class="toggle-cb"><span class="toggle-track"></span></label>`;
     } else {
-      const t = isPassword ? "password" : opt.Type === "int" ? "number" : "text";
+      const t = opt.Type === "int" ? "number" : "text";
       const def = opt.DefaultStr !== void 0 ? opt.DefaultStr : opt.Default !== void 0 ? String(opt.Default) : "";
       input = `<input type="${t}" id="pf-${esc(key)}" value="${esc(def)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm">`;
     }
