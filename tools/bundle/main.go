@@ -24,6 +24,8 @@ func main() {
 		Outfile:     "web/app.generated.js",
 		Write:       true,
 		LogLevel:    api.LogLevelInfo,
+		// Shim Node's `global` to `window` for browser-targeted CJS packages.
+		Define: map[string]string{"global": "window"},
 		Banner: map[string]string{
 			"js": "/* GENERATED from web/js/*.js by `go generate ./...` — do not edit by hand. */",
 		},
