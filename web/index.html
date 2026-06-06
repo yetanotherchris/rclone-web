@@ -42,6 +42,28 @@
   border-top-color: #1e293b;
 }
 .tt:hover .tt-tip { opacity: 1; }
+.toggle { display: inline-flex; align-items: center; cursor: pointer; gap: 8px; }
+.toggle-cb { position: absolute; opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  width: 36px; height: 20px;
+  background: #cbd5e1;
+  border-radius: 10px;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  transition: transform 0.15s;
+}
+.toggle-cb:checked + .toggle-track { background: #2563eb; }
+.toggle-cb:checked + .toggle-track::after { transform: translateX(16px); }
 .tab-bar {
   display: flex;
   gap: 2px;
@@ -217,8 +239,10 @@
                   </select>
                 </div>
                 <div class="flex items-end pb-2">
-                  <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" id="f-enabled" class="rounded" checked /> Enabled
+                  <label class="toggle text-sm">
+                    <input type="checkbox" id="f-enabled" class="toggle-cb" checked />
+                    <span class="toggle-track"></span>
+                    <span>Enabled</span>
                   </label>
                 </div>
                 <div>

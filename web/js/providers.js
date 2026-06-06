@@ -179,7 +179,7 @@ function backendFieldHTML(opt, prefix) {
     const opts = opt.Examples.map(ex => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join('');
     input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
   } else if (opt.Type === 'bool') {
-    input = `<div class="py-1"><input type="checkbox" id="pf-${esc(key)}" class="rounded"></div>`;
+    input = `<label class="toggle py-1"><input type="checkbox" id="pf-${esc(key)}" class="toggle-cb"><span class="toggle-track"></span></label>`;
   } else {
     const t = isPassword ? 'password' : (opt.Type === 'int' ? 'number' : 'text');
     const def = opt.DefaultStr !== undefined ? opt.DefaultStr : (opt.Default !== undefined ? String(opt.Default) : '');
