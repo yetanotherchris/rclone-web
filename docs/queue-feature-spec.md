@@ -126,7 +126,8 @@ type QueueManager struct {
 }
 ```
 
-Methods: `Start`, `Get`, `Stop`, `ListRecent`.
+Methods: `Start`, `Get`, `Stop`, `ListRecent`. `Start` returns an error if any
+queue run is currently in `running` state — only one queue may run at a time.
 
 ### API endpoints (`internal/server/server.go`)
 
@@ -289,7 +290,7 @@ finishes or the queue is stopped.
 | Case | Behaviour |
 |------|-----------|
 | Job deleted after being added to queue | `POST /api/queues/{id}/run` returns 422 listing missing job IDs |
-| Queue run already active | `POST /api/queues/{id}/run` returns 409 Conflict |
+| Any queue already running | `POST /api/queues/{id}/run` returns 409 Conflict — only one queue may run at a time server-wide |
 | Individual job cancel via `/api/runs/{id}/stop` during queue | Queue detects job failed/canceled, applies `on_failure` logic |
 | Server restart mid-run | All in-memory run state is lost; queue definition survives in YAML |
 
