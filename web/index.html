@@ -167,6 +167,10 @@
                   <p class="mt-1 text-xs text-slate-400">Always treated as a folder. A trailing name (e.g. "bucketname/readme.md") creates a folder of that name — copy/sync/move can't rename a file.</p>
                 </div>
               </div>
+              <div class="mt-5 rounded-lg bg-slate-900 p-4">
+                <p class="mb-1 text-xs uppercase tracking-wide text-slate-400">Command preview (secrets passed via env, not shown)</p>
+                <code id="cmd-preview" class="block break-all font-mono text-sm text-emerald-300"></code>
+              </div>
             </div>
 
             <!-- Advanced tab -->
@@ -176,10 +180,6 @@
                   <div>
                     <label class="mb-1 block text-sm font-medium">Extra args <span class="font-normal text-slate-400">(space-separated; no quoted spaces in v1)</span></label>
                     <input id="f-extra" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none" placeholder="--exclude *.tmp" />
-                  </div>
-                  <div class="rounded-lg bg-slate-900 p-4">
-                    <p class="mb-1 text-xs uppercase tracking-wide text-slate-400">Command preview (secrets passed via env, not shown)</p>
-                    <code id="cmd-preview" class="block break-all font-mono text-sm text-emerald-300"></code>
                   </div>
                 </div>
                 <aside class="w-full shrink-0 rounded-xl border border-slate-200 bg-slate-50 p-5 lg:w-72">
