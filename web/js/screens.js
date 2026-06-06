@@ -23,6 +23,10 @@ export function showLock() {
   document.getElementById('lock-error').classList.add('hidden');
   document.getElementById('lock').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
+  // Autofocus the active passphrase field so the user can type immediately —
+  // covers first load, idle-lock, and manual lock. Focus whichever input the
+  // current mode shows (short-password prefix vs. full passphrase).
+  document.getElementById(state.shortLen > 0 ? 'prefix-input' : 'full-input').focus();
 }
 
 export function showApp() {

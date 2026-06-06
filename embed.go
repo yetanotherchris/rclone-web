@@ -12,7 +12,7 @@ import (
 // the Tailwind input are build-time inputs, not shipped: app.generated.js is the
 // esbuild bundle (see the //go:generate above). Naming files (not the whole dir)
 // also makes a missing/renamed asset a build error instead of a silent 404.
-//go:embed web/index.html web/app.css web/app.generated.js
+//go:embed web/index.html web/app.css web/app.generated.js web/favicon-512.png
 var webEmbed embed.FS
 
 func webFS() fs.FS {

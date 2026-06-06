@@ -459,8 +459,10 @@
     const required = options.filter((o) => !o.Advanced && !o.Hide);
     const advanced = options.filter((o) => o.Advanced && !o.Hide);
     if (type === "drive") {
+      const fileIdx = required.findIndex((o) => o.Name === "service_account_file");
+      if (fileIdx !== -1) advanced.unshift(...required.splice(fileIdx, 1));
       const blob = options.find((o) => o.Name === "service_account_credentials");
-      if (blob && !advanced.includes(blob)) advanced.unshift(blob);
+      if (blob && !required.includes(blob)) required.unshift(blob);
     }
     const fieldsEl = document.getElementById("p-fields");
     const advEl = document.getElementById("p-fields-advanced");
@@ -486,7 +488,7 @@
     let input, hint = "";
     if (isBlob) {
       input = `<textarea id="pf-${esc(key)}" rows="4" placeholder='{ "type": "service_account", "project_id": "...", ... }' class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"></textarea>`;
-      hint = 'Paste the JSON itself to keep the credentials inside the encrypted config — no plaintext key file left on disk. Or use the "…JSON file path" field instead if you prefer to reference a file.';
+      hint = 'Paste the JSON itself to keep the credentials inside the encrypted config — no plaintext key file left on disk. Prefer a file on disk instead? Use the "Service Account Credentials JSON file path" field under Advanced.';
     } else if (opt.Examples && opt.Examples.length) {
       const opts = opt.Examples.map((ex) => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join("");
       input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
@@ -575,6 +577,7 @@
     document.getElementById("lock-error").classList.add("hidden");
     document.getElementById("lock").classList.remove("hidden");
     document.getElementById("app").classList.add("hidden");
+    document.getElementById(state.shortLen > 0 ? "prefix-input" : "full-input").focus();
   }
   function showApp() {
     document.getElementById("lock").classList.add("hidden");

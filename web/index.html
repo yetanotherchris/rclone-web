@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>rclone-web</title>
+<link rel="icon" type="image/png" sizes="512x512" href="/assets/favicon-512.png" />
+<link rel="apple-touch-icon" href="/assets/favicon-512.png" />
 <link rel="stylesheet" href="/assets/app.css" />
 </head>
 <body class="bg-slate-100 text-slate-800">
@@ -15,7 +17,7 @@
       <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 text-white font-bold text-sm">rw</div>
       <div>
         <h1 class="text-lg font-semibold">rclone-web</h1>
-        <p class="text-xs text-slate-500" id="lock-subtitle">Vault is locked</p>
+        <p class="text-xs text-slate-500" id="lock-subtitle">Locked — enter your password to unlock</p>
       </div>
     </div>
     <div id="lock-prefix-mode" class="hidden">
@@ -65,7 +67,10 @@
     </aside>
 
     <!-- Main -->
-    <main class="flex-1">
+    <!-- min-width:0 (Tailwind `min-w-0`) lets this flex item shrink below its
+         content width, so wide children like the run-log <pre> scroll inside
+         their own `overflow-auto` box instead of stretching the whole page. -->
+    <main class="flex-1" style="min-width:0">
 
       <!-- DASHBOARD -->
       <section data-screen="dashboard" class="screen hidden p-8">
