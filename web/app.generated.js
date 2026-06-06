@@ -1302,7 +1302,7 @@
       "box-shadow:0 6px 20px rgba(0,0,0,.18);border-radius:6px;background:#fff;border:1px solid #e2e8f0}",
       ".gu-hide{display:none!important}",
       ".gu-unselectable{user-select:none!important}",
-      ".gu-transit{opacity:.35;border:2px dashed #94a3b8!important;border-radius:4px}",
+      ".gu-transit{opacity:.5;border:2px dashed #475569!important;border-radius:4px}",
       ".rw-drag-item{cursor:grab}",
       ".rw-drag-item:active{cursor:grabbing}",
       ".rw-drag-active{background:#f1f5f9;border-radius:6px;transition:background .15s}",
