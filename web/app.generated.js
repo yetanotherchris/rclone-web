@@ -417,6 +417,12 @@
     renderQueueJobList(q ? q.job_ids || [] : []);
     showScreen("queueform");
   }
+  if (!document.getElementById("rw-drag-style")) {
+    const s = document.createElement("style");
+    s.id = "rw-drag-style";
+    s.textContent = "body.rw-dragging, body.rw-dragging * { cursor: move !important; }";
+    document.head.appendChild(s);
+  }
   function renderQueueJobList(jobIds) {
     const list = document.getElementById("qf-jobs-list");
     list.innerHTML = "";
@@ -436,13 +442,13 @@
         dragSrcIdx = idx;
         e.dataTransfer.effectAllowed = "move";
         setTimeout(() => {
-          item.classList.add("opacity-40");
-          document.body.style.cursor = "move";
+          item.classList.add("bg-slate-200");
+          document.body.classList.add("rw-dragging");
         }, 0);
       });
       item.addEventListener("dragend", () => {
-        item.classList.remove("opacity-40");
-        document.body.style.cursor = "";
+        item.classList.remove("bg-slate-200");
+        document.body.classList.remove("rw-dragging");
         list.querySelectorAll(".drag-over").forEach((el) => el.classList.remove("drag-over", "border-t-2", "border-brand-400"));
       });
       item.addEventListener("dragover", (e) => {
