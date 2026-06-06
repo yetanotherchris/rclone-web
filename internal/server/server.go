@@ -170,6 +170,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/status", s.handleStatus)
 
 	// Protected API
+	mux.HandleFunc("GET /api/ping", s.auth(func(w http.ResponseWriter, r *http.Request) { jsonOK(w, nil) }))
 	mux.HandleFunc("GET /api/jobs", s.auth(s.handleListJobs))
 	mux.HandleFunc("POST /api/jobs", s.csrf(s.handleCreateJob))
 	mux.HandleFunc("GET /api/jobs/{id}", s.auth(s.handleGetJob))

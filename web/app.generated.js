@@ -763,6 +763,20 @@
     document.getElementById("confirm-no").addEventListener("click", () => showScreen("dashboard"));
     document.getElementById("p-type").addEventListener("change", renderProviderFields);
     document.getElementById("p-name").addEventListener("input", renderProviderFields);
+    let pingPending = false;
+    document.addEventListener("focusin", maybeping);
+    document.addEventListener("input", maybeping);
+    document.addEventListener("change", maybeping);
+    function maybeping(e) {
+      if (!e.target.matches("input, textarea, select, button")) return;
+      if (pingPending) return;
+      pingPending = true;
+      setTimeout(() => {
+        pingPending = false;
+      }, 15e3);
+      fetch("/api/ping").catch(() => {
+      });
+    }
     checkStatus();
   });
 })();

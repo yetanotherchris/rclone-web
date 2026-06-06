@@ -91,6 +91,20 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('p-type').addEventListener('change', renderProviderFields);
   document.getElementById('p-name').addEventListener('input', renderProviderFields);
 
+  // Reset idle timer on form interaction (focusin, input, change on any form element).
+  // Debounced to at most one ping per 15 s so we don't flood the server.
+  let pingPending = false;
+  document.addEventListener('focusin', maybeping);
+  document.addEventListener('input', maybeping);
+  document.addEventListener('change', maybeping);
+  function maybeping(e) {
+    if (!e.target.matches('input, textarea, select, button')) return;
+    if (pingPending) return;
+    pingPending = true;
+    setTimeout(() => { pingPending = false; }, 15000);
+    fetch('/api/ping').catch(() => {});
+  }
+
   // Check session status on load
   checkStatus();
 });
