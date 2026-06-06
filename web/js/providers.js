@@ -125,7 +125,6 @@ export function renderProviderFields() {
   const type = document.getElementById('p-type').value;
   const name = (document.getElementById('p-name').value || 'remote').toUpperCase();
   const prefix = `RCLONE_CONFIG_${name}_`;
-  document.getElementById('p-prefix').textContent = `→ ${prefix}<KEY>`;
 
   // Try to get fields from the backends schema
   const backend = state.backends && state.backends.find(b => b.Name === type);
