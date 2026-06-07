@@ -36,9 +36,54 @@ func defaultAgeConfig() string {
 	return filepath.Join(appConfigDir(), "rcloneweb.yml.age")
 }
 
+func newServeFlags() *flag.FlagSet {
+	defaults := config.DefaultConfig()
+	fs := flag.NewFlagSet("serve", flag.ExitOnError)
+	fs.String("config", defaultAgeConfig(), "Path to age-encrypted config")
+	fs.Int("port", defaults.Port, "HTTP port (falls back to a random free port if in use; 0 = always random)")
+	fs.String("bind", defaults.BindAddr, "Bind address")
+	fs.Int("idle-timeout", defaults.IdleTimeoutSeconds, "Idle timeout in seconds (ignored with --key-file)")
+	fs.String("rclone-path", defaults.RclonePath, "Path to rclone binary (default assumes rclone is on $PATH)")
+	fs.String("key-file", "", "Path to file containing the passphrase; skips browser unlock and disables idle lock")
+	return fs
+}
+
+func newRunFlags() *flag.FlagSet {
+	fs := flag.NewFlagSet("run", flag.ExitOnError)
+	fs.String("config", defaultAgeConfig(), "Path to age-encrypted config")
+	fs.String("key-file", "", "Path to file containing the passphrase (required)")
+	fs.String("job-id", "", "ID of the job to run")
+	fs.String("queue-id", "", "ID of the queue to run")
+	fs.String("rclone-path", config.DefaultConfig().RclonePath, "Path to rclone binary")
+	return fs
+}
+
+func printHelp() {
+	fmt.Printf("rclone-web %s\n", version)
+	fmt.Println()
+	fmt.Println("A web UI for managing and running rclone jobs, protected by an age-encrypted YAML config file.")
+	fmt.Println()
+	fmt.Println("Usage:")
+	fmt.Println("  rclone-web [serve flags]     Start the HTTP server (default command)")
+	fmt.Println("  rclone-web init [flags]      Create or verify the encrypted config file")
+	fmt.Println("  rclone-web run [flags]       Run a job or queue without starting the server")
+	fmt.Println("  rclone-web version           Print the version and exit")
+	fmt.Println()
+	fmt.Println("Serve flags:")
+	newServeFlags().PrintDefaults()
+	fmt.Println()
+	fmt.Println("Run flags:")
+	newRunFlags().PrintDefaults()
+}
+
 func main() {
+	flag.Usage = func() { printHelp() }
+
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "help", "--help", "-h":
+			printHelp()
+			return
 		case "init":
 			if err := runInit(os.Args[2:]); err != nil {
 				log.Fatalf("init: %v", err)
@@ -143,14 +188,16 @@ func runInit(args []string) error {
 
 func runServe() {
 	defaults := config.DefaultConfig()
+	fs := flag.NewFlagSet("serve", flag.ExitOnError)
+	fs.Usage = func() { printHelp() }
 
-	ageCfgFlag := flag.String("config", defaultAgeConfig(), "Path to age-encrypted config")
-	portFlag := flag.Int("port", defaults.Port, "HTTP port (falls back to a random free port if in use; 0 = always random)")
-	bindFlag := flag.String("bind", defaults.BindAddr, "Bind address")
-	idleFlag := flag.Int("idle-timeout", defaults.IdleTimeoutSeconds, "Idle timeout in seconds (ignored with --key-file)")
-	rcloneFlag := flag.String("rclone-path", defaults.RclonePath, "Path to rclone binary (default assumes rclone is on $PATH)")
-	keyFileFlag := flag.String("key-file", "", "Path to file containing the passphrase; skips browser unlock and disables idle lock")
-	flag.Parse()
+	ageCfgFlag := fs.String("config", defaultAgeConfig(), "Path to age-encrypted config")
+	portFlag := fs.Int("port", defaults.Port, "HTTP port (falls back to a random free port if in use; 0 = always random)")
+	bindFlag := fs.String("bind", defaults.BindAddr, "Bind address")
+	idleFlag := fs.Int("idle-timeout", defaults.IdleTimeoutSeconds, "Idle timeout in seconds (ignored with --key-file)")
+	rcloneFlag := fs.String("rclone-path", defaults.RclonePath, "Path to rclone binary (default assumes rclone is on $PATH)")
+	keyFileFlag := fs.String("key-file", "", "Path to file containing the passphrase; skips browser unlock and disables idle lock")
+	fs.Parse(os.Args[1:])
 
 	cfg := &config.AppConfig{
 		ConfigPath:         *ageCfgFlag,
