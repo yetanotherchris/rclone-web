@@ -58,6 +58,18 @@ func newRunFlags() *flag.FlagSet {
 	return fs
 }
 
+func printFlagDefaults(fs *flag.FlagSet) {
+	var buf strings.Builder
+	fs.SetOutput(&buf)
+	fs.PrintDefaults()
+	// flag package prints "  -name" — replace with "  --name"
+	out := strings.ReplaceAll(buf.String(), "\n  -", "\n  --")
+	if strings.HasPrefix(out, "  -") {
+		out = "  --" + out[3:]
+	}
+	fmt.Print(out)
+}
+
 func printHelp() {
 	fmt.Printf("rclone-web %s\n", version)
 	fmt.Println()
@@ -70,10 +82,10 @@ func printHelp() {
 	fmt.Println("  rclone-web version           Print the version and exit")
 	fmt.Println()
 	fmt.Println("Serve flags:")
-	newServeFlags().PrintDefaults()
+	printFlagDefaults(newServeFlags())
 	fmt.Println()
 	fmt.Println("Run flags:")
-	newRunFlags().PrintDefaults()
+	printFlagDefaults(newRunFlags())
 }
 
 func main() {
