@@ -43,7 +43,7 @@ func newServeFlags() *flag.FlagSet {
 	fs.Int("port", defaults.Port, "HTTP port (falls back to a random free port if in use; 0 = always random)")
 	fs.String("bind", defaults.BindAddr, "Bind address")
 	fs.Int("idle-timeout", defaults.IdleTimeoutSeconds, "Idle timeout in seconds (ignored with --key-file)")
-	fs.String("rclone-path", defaults.RclonePath, "Path to rclone binary (default assumes rclone is on $PATH)")
+	fs.String("rclone-path", "", "Path to rclone binary (default: assumes rclone is on $PATH)")
 	fs.String("key-file", "", "Path to file containing the passphrase; skips browser unlock and disables idle lock")
 	return fs
 }
@@ -54,7 +54,7 @@ func newRunFlags() *flag.FlagSet {
 	fs.String("key-file", "", "Path to file containing the passphrase (required)")
 	fs.String("job-id", "", "ID of the job to run")
 	fs.String("queue-id", "", "ID of the queue to run")
-	fs.String("rclone-path", config.DefaultConfig().RclonePath, "Path to rclone binary")
+	fs.String("rclone-path", "", "Path to rclone binary (default: assumes rclone is on $PATH)")
 	return fs
 }
 
@@ -207,16 +207,20 @@ func runServe() {
 	portFlag := fs.Int("port", defaults.Port, "HTTP port (falls back to a random free port if in use; 0 = always random)")
 	bindFlag := fs.String("bind", defaults.BindAddr, "Bind address")
 	idleFlag := fs.Int("idle-timeout", defaults.IdleTimeoutSeconds, "Idle timeout in seconds (ignored with --key-file)")
-	rcloneFlag := fs.String("rclone-path", defaults.RclonePath, "Path to rclone binary (default assumes rclone is on $PATH)")
+	rcloneFlag := fs.String("rclone-path", "", "Path to rclone binary (default: assumes rclone is on $PATH)")
 	keyFileFlag := fs.String("key-file", "", "Path to file containing the passphrase; skips browser unlock and disables idle lock")
 	fs.Parse(os.Args[1:])
 
+	rclonePath := *rcloneFlag
+	if rclonePath == "" {
+		rclonePath = "rclone"
+	}
 	cfg := &config.AppConfig{
 		ConfigPath:         *ageCfgFlag,
 		Port:               *portFlag,
 		BindAddr:           *bindFlag,
 		IdleTimeoutSeconds: *idleFlag,
-		RclonePath:         *rcloneFlag,
+		RclonePath:         rclonePath,
 	}
 
 	store := creds.New()
@@ -296,8 +300,12 @@ func runRun(args []string) error {
 	keyFileFlag := fs.String("key-file", "", "Path to file containing the passphrase (required)")
 	jobIDFlag := fs.String("job-id", "", "ID of the job to run")
 	queueIDFlag := fs.String("queue-id", "", "ID of the queue to run")
-	rcloneFlag := fs.String("rclone-path", config.DefaultConfig().RclonePath, "Path to rclone binary")
+	rcloneFlag := fs.String("rclone-path", "", "Path to rclone binary (default: assumes rclone is on $PATH)")
 	fs.Parse(args)
+
+	if *rcloneFlag == "" {
+		*rcloneFlag = "rclone"
+	}
 
 	if *keyFileFlag == "" {
 		return fmt.Errorf("--key-file is required for the run subcommand")
