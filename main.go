@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"filippo.io/age"
 	"github.com/spf13/cobra"
 	"github.com/yetanotherchris/rclone-web/internal/config"
 	"github.com/yetanotherchris/rclone-web/internal/creds"
@@ -83,7 +84,15 @@ func main() {
 	runCmd.Flags().String("queue-id", "", "ID of the queue to run")
 	runCmd.Flags().String("rclone-path", "", "Path to rclone binary (default: assumes rclone is on $PATH)")
 
-	root.AddCommand(initCmd, runCmd)
+	generateKeyCmd := &cobra.Command{
+		Use:   "generate-key",
+		Short: "Generate an age key pair and save it to key.age in the current directory",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runGenerateKey()
+		},
+	}
+
+	root.AddCommand(initCmd, runCmd, generateKeyCmd)
 
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
@@ -387,5 +396,25 @@ func headlessRunQueue(cfg *config.RcloneConfig, src *remotes.EnvVarSource, rclon
 	if queueFailed {
 		os.Exit(1)
 	}
+	return nil
+}
+
+// ---- generate-key subcommand ----
+
+func runGenerateKey() error {
+	identity, err := age.GenerateX25519Identity()
+	if err != nil {
+		return fmt.Errorf("generate age key: %w", err)
+	}
+
+	outPath := "key.age"
+	keyContent := fmt.Sprintf("# public key: %s\n%s\n", identity.Recipient().String(), identity.String())
+
+	if err := os.WriteFile(outPath, []byte(keyContent), 0600); err != nil {
+		return fmt.Errorf("write key file: %w", err)
+	}
+
+	fmt.Printf("✓ Generated age key saved to %s\n", outPath)
+	fmt.Printf("  Public key: %s\n", identity.Recipient().String())
 	return nil
 }
