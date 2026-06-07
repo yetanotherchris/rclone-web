@@ -58,10 +58,12 @@ func main() {
 		Short: "Create or verify the encrypted config file",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfgPath, _ := cmd.Flags().GetString("config")
-			return runInit(cfgPath)
+			keyFile, _ := cmd.Flags().GetString("key-file")
+			return runInit(cfgPath, keyFile)
 		},
 	}
 	initCmd.Flags().String("config", defaultAgeConfig(), "Path to age-encrypted config")
+	initCmd.Flags().String("key-file", "", "Path to an age identity file (AGE-SECRET-KEY-1…) to use instead of a passphrase")
 
 	runCmd := &cobra.Command{
 		Use:   "run",
@@ -190,9 +192,13 @@ func serveCmd(cmd *cobra.Command, args []string) error {
 
 // ---- init subcommand ----
 
-func runInit(ageCfgPath string) error {
+func runInit(ageCfgPath, keyFile string) error {
 	if err := os.MkdirAll(filepath.Dir(ageCfgPath), 0700); err != nil {
 		return fmt.Errorf("create config dir: %w", err)
+	}
+
+	if keyFile != "" {
+		return runInitWithKeyFile(ageCfgPath, keyFile)
 	}
 
 	fmt.Print("Password: ")
@@ -265,6 +271,36 @@ func runInit(ageCfgPath string) error {
 	return nil
 }
 
+func runInitWithKeyFile(ageCfgPath, keyFile string) error {
+	raw, err := os.ReadFile(keyFile)
+	if err != nil {
+		return fmt.Errorf("read key file: %w", err)
+	}
+	credential := string(raw)
+	if !secret.IsAgeIdentityContent(credential) {
+		return fmt.Errorf("key file %s does not contain an age identity (AGE-SECRET-KEY-1…); use generate-key to create one", keyFile)
+	}
+
+	_, statErr := os.Stat(ageCfgPath)
+	if errors.Is(statErr, os.ErrNotExist) {
+		emptyCfg := config.EmptyRcloneConfig()
+		initialYAML, err := config.MarshalConfig(emptyCfg)
+		if err != nil {
+			return fmt.Errorf("marshal initial config: %w", err)
+		}
+		if err := secret.EncryptAuto(ageCfgPath, credential, initialYAML); err != nil {
+			return fmt.Errorf("create encrypted config: %w", err)
+		}
+		fmt.Printf("✓ Created encrypted config at %s\n", ageCfgPath)
+	} else {
+		if _, err := secret.DecryptAuto(ageCfgPath, credential); err != nil {
+			return fmt.Errorf("key file did not decrypt config: %w", err)
+		}
+		fmt.Println("✓ Config decrypted successfully.")
+	}
+	return nil
+}
+
 // ---- run subcommand ----
 
 func runRun(cfgPath, keyFile, jobID, queueID, rclonePath string) error {
@@ -284,7 +320,7 @@ func runRun(cfgPath, keyFile, jobID, queueID, rclonePath string) error {
 	}
 	passphrase := strings.TrimRight(string(raw), "\r\n")
 
-	data, err := secret.Decrypt(cfgPath, passphrase)
+	data, err := secret.DecryptAuto(cfgPath, passphrase)
 	if err != nil {
 		return fmt.Errorf("decrypt config: %w", err)
 	}
