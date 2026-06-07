@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/yetanotherchris/rclone-web/internal/config"
 	"github.com/yetanotherchris/rclone-web/internal/creds"
+	"github.com/yetanotherchris/rclone-web/internal/remotes"
 	"github.com/yetanotherchris/rclone-web/internal/secret"
 	"github.com/yetanotherchris/rclone-web/internal/server"
 	"golang.org/x/term"
@@ -40,6 +42,11 @@ func main() {
 		case "init":
 			if err := runInit(os.Args[2:]); err != nil {
 				log.Fatalf("init: %v", err)
+			}
+			return
+		case "run":
+			if err := runRun(os.Args[2:]); err != nil {
+				log.Fatalf("run: %v", err)
 			}
 			return
 		case "version", "--version", "-version":
@@ -218,4 +225,148 @@ func runServe() {
 
 	// Block forever.
 	select {}
+}
+
+// ---- run subcommand ----
+
+// runRun executes a single job or queue without starting the HTTP server.
+// It requires --key-file for authentication and pipes rclone output to stdout.
+func runRun(args []string) error {
+	fs := flag.NewFlagSet("run", flag.ExitOnError)
+	configFlag := fs.String("config", defaultAgeConfig(), "Path to age-encrypted config")
+	keyFileFlag := fs.String("key-file", "", "Path to file containing the passphrase (required)")
+	jobIDFlag := fs.String("job-id", "", "ID of the job to run")
+	queueIDFlag := fs.String("queue-id", "", "ID of the queue to run")
+	rcloneFlag := fs.String("rclone-path", config.DefaultConfig().RclonePath, "Path to rclone binary")
+	fs.Parse(args)
+
+	if *keyFileFlag == "" {
+		return fmt.Errorf("--key-file is required for the run subcommand")
+	}
+	if *jobIDFlag == "" && *queueIDFlag == "" {
+		return fmt.Errorf("one of --job-id or --queue-id is required")
+	}
+	if *jobIDFlag != "" && *queueIDFlag != "" {
+		return fmt.Errorf("--job-id and --queue-id are mutually exclusive")
+	}
+
+	raw, err := os.ReadFile(*keyFileFlag)
+	if err != nil {
+		return fmt.Errorf("read key file: %w", err)
+	}
+	passphrase := strings.TrimRight(string(raw), "\r\n")
+
+	data, err := secret.Decrypt(*configFlag, passphrase)
+	if err != nil {
+		return fmt.Errorf("decrypt config: %w", err)
+	}
+	cfg, err := config.ParseConfig(data)
+	if err != nil {
+		return fmt.Errorf("parse config: %w", err)
+	}
+
+	src := &remotes.EnvVarSource{}
+
+	if *jobIDFlag != "" {
+		return headlessRunJob(cfg, src, *rcloneFlag, *jobIDFlag)
+	}
+	return headlessRunQueue(cfg, src, *rcloneFlag, *queueIDFlag)
+}
+
+func headlessRunJob(cfg *config.RcloneConfig, src *remotes.EnvVarSource, rclonePath, jobID string) error {
+	var job *config.Job
+	for i := range cfg.Rclone.Jobs {
+		if cfg.Rclone.Jobs[i].ID == jobID {
+			job = &cfg.Rclone.Jobs[i]
+			break
+		}
+	}
+	if job == nil {
+		return fmt.Errorf("job %q not found", jobID)
+	}
+
+	argv, err := remotes.AssembleArgv(src, cfg, job, false)
+	if err != nil {
+		return fmt.Errorf("assemble argv: %w", err)
+	}
+
+	extraEnv := src.Env(cfg.Rclone.Providers)
+	cmd := exec.Command(rclonePath, argv...)
+	cmd.Env = append(os.Environ(), extraEnv...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stdout
+
+	fmt.Printf("Running job %q (%s)\n", job.DisplayName(), jobID)
+	if err := cmd.Run(); err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			os.Exit(exitErr.ExitCode())
+		}
+		return fmt.Errorf("rclone: %w", err)
+	}
+	return nil
+}
+
+func headlessRunQueue(cfg *config.RcloneConfig, src *remotes.EnvVarSource, rclonePath, queueID string) error {
+	var queue *config.Queue
+	for i := range cfg.Rclone.Queues {
+		if cfg.Rclone.Queues[i].ID == queueID {
+			queue = &cfg.Rclone.Queues[i]
+			break
+		}
+	}
+	if queue == nil {
+		return fmt.Errorf("queue %q not found", queueID)
+	}
+
+	jobMap := make(map[string]*config.Job, len(cfg.Rclone.Jobs))
+	for i := range cfg.Rclone.Jobs {
+		jobMap[cfg.Rclone.Jobs[i].ID] = &cfg.Rclone.Jobs[i]
+	}
+
+	fmt.Printf("Running queue %q (%s) — %d job(s)\n", queue.Name, queueID, len(queue.JobIDs))
+
+	queueFailed := false
+	for _, jid := range queue.JobIDs {
+		job, ok := jobMap[jid]
+		if !ok {
+			fmt.Fprintf(os.Stderr, "warning: job %q not found in config, skipping\n", jid)
+			if queue.OnFailure == "stop" {
+				queueFailed = true
+				break
+			}
+			queueFailed = true
+			continue
+		}
+
+		argv, err := remotes.AssembleArgv(src, cfg, job, false)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: assemble argv for job %q: %v\n", jid, err)
+			if queue.OnFailure == "stop" {
+				queueFailed = true
+				break
+			}
+			queueFailed = true
+			continue
+		}
+
+		extraEnv := src.Env(cfg.Rclone.Providers)
+		cmd := exec.Command(rclonePath, argv...)
+		cmd.Env = append(os.Environ(), extraEnv...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stdout
+
+		fmt.Printf("\n--- Job %q (%s) ---\n", job.DisplayName(), jid)
+		if runErr := cmd.Run(); runErr != nil {
+			fmt.Fprintf(os.Stderr, "job %q failed: %v\n", jid, runErr)
+			queueFailed = true
+			if queue.OnFailure == "stop" {
+				break
+			}
+		}
+	}
+
+	if queueFailed {
+		os.Exit(1)
+	}
+	return nil
 }

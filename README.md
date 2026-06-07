@@ -78,6 +78,34 @@ use.
 > **Warning:** key-file mode disables authentication. Keep the default
 > `127.0.0.1` bind; binding to a public address exposes the server with no login.
 
+## Running jobs from the command line
+
+Jobs and queues each have a short two-word ID (e.g. `apple-orange`) shown in the
+web UI next to their name. You can run them directly from the terminal — no browser
+or server needed — with the `run` subcommand:
+
+```bash
+# Run a single job
+rclone-web run --key-file ~/.config/rcloneweb/key.txt --job-id apple-orange
+
+# Run a queue
+rclone-web run --key-file ~/.config/rcloneweb/key.txt --queue-id noble-river
+```
+
+`--key-file` is required (the same passphrase file you'd pass to `serve`).
+rclone output is piped directly to stdout/stderr, and the process exits with
+rclone's exit code. For queues, the `on_failure` policy set in the UI is respected.
+
+### `run` flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--key-file` | *(required)* | Path to a file containing the passphrase |
+| `--job-id` | *(none)* | ID of the job to run |
+| `--queue-id` | *(none)* | ID of the queue to run |
+| `--config` | `~/.config/rcloneweb/rcloneweb.yml.age` | Path to age-encrypted config |
+| `--rclone-path` | `rclone` | Path to the rclone binary |
+
 ### Serve flags
 
 | Flag | Default | Description |

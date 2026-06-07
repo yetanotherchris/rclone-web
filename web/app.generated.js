@@ -1154,6 +1154,7 @@
       const tr = document.createElement("tr");
       tr.innerHTML = `
       <td class="px-5 py-4 font-medium">${esc(job.name)}</td>
+      <td class="px-5 py-4 font-mono text-xs text-slate-400">${esc(job.id)}</td>
       <td class="px-5 py-4">${cmdBadge}</td>
       <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(srcRemote)}</td>
       <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(dstRemote)}</td>
@@ -1325,6 +1326,7 @@
       const tr = document.createElement("tr");
       tr.innerHTML = `
       <td class="px-5 py-4 font-medium">${esc(q.name)}</td>
+      <td class="px-5 py-4 font-mono text-xs text-slate-400">${esc(q.id)}</td>
       <td class="px-5 py-4 text-sm text-slate-500">${jobCount}</td>
       <td class="px-5 py-4 text-sm text-slate-500">${esc(onFail)}</td>
       <td class="px-5 py-4">${statusCell}</td>
