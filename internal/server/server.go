@@ -87,7 +87,7 @@ func (s *Server) lock() {
 // into key-file mode: always unlocked, no session or CSRF checks required.
 // Must be called before Start.
 func (s *Server) AutoUnlock(passphrase string) error {
-	data, err := secret.Decrypt(s.cfg.ConfigPath, passphrase)
+	data, err := secret.DecryptAuto(s.cfg.ConfigPath, passphrase)
 	if err != nil {
 		return fmt.Errorf("decrypt config: %w", err)
 	}
@@ -1003,7 +1003,7 @@ func (s *Server) saveConfig() error {
 	if err != nil {
 		return err
 	}
-	return secret.Encrypt(s.cfg.ConfigPath, s.passphrase, data)
+	return secret.EncryptAuto(s.cfg.ConfigPath, s.passphrase, data)
 }
 
 // execCommand wraps exec.Command so the import is used.
