@@ -407,28 +407,14 @@ func runGenerateKey() error {
 		return fmt.Errorf("generate age key: %w", err)
 	}
 
-	fmt.Print("Password (blank for no encryption): ")
-	pw, err := term.ReadPassword(int(os.Stdin.Fd()))
-	if err != nil {
-		return fmt.Errorf("read password: %w", err)
-	}
-	fmt.Println()
-	passphrase := string(pw)
-
 	outPath := "key.age"
 	keyContent := fmt.Sprintf("# public key: %s\n%s\n", identity.Recipient().String(), identity.String())
 
-	if passphrase != "" {
-		if err := secret.Encrypt(outPath, passphrase, []byte(keyContent)); err != nil {
-			return fmt.Errorf("encrypt key file: %w", err)
-		}
-		fmt.Printf("✓ Generated encrypted age key saved to %s\n", outPath)
-	} else {
-		if err := os.WriteFile(outPath, []byte(keyContent), 0600); err != nil {
-			return fmt.Errorf("write key file: %w", err)
-		}
-		fmt.Printf("✓ Generated age key saved to %s\n", outPath)
+	if err := os.WriteFile(outPath, []byte(keyContent), 0600); err != nil {
+		return fmt.Errorf("write key file: %w", err)
 	}
+
+	fmt.Printf("✓ Generated age key saved to %s\n", outPath)
 	fmt.Printf("  Public key: %s\n", identity.Recipient().String())
 	return nil
 }
