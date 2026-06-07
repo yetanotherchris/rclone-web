@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yetanotherchris/rclone-web/internal/bip39"
 	"github.com/yetanotherchris/rclone-web/internal/config"
 	"github.com/yetanotherchris/rclone-web/internal/remotes"
 	"github.com/yetanotherchris/rclone-web/internal/runner"
@@ -364,15 +365,18 @@ func (s *Server) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	if job.ID == "" {
-		job.ID = fmt.Sprintf("j%x", time.Now().UnixNano())
-	}
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.rcCfg == nil {
 		jsonErr(w, "locked", http.StatusUnauthorized)
 		return
+	}
+	if job.ID == "" {
+		taken := make(map[string]bool, len(s.rcCfg.Rclone.Jobs))
+		for _, j := range s.rcCfg.Rclone.Jobs {
+			taken[j.ID] = true
+		}
+		job.ID = bip39.Generate(taken)
 	}
 	s.rcCfg.Rclone.Jobs = append(s.rcCfg.Rclone.Jobs, job)
 	if err := s.saveConfig(); err != nil {
@@ -746,15 +750,19 @@ func (s *Server) handleCreateQueue(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "name is required", http.StatusBadRequest)
 		return
 	}
-	if q.ID == "" {
-		q.ID = fmt.Sprintf("q%x", time.Now().UnixNano())
-	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.rcCfg == nil {
 		jsonErr(w, "locked", http.StatusUnauthorized)
 		return
+	}
+	if q.ID == "" {
+		taken := make(map[string]bool, len(s.rcCfg.Rclone.Queues))
+		for _, existing := range s.rcCfg.Rclone.Queues {
+			taken[existing.ID] = true
+		}
+		q.ID = bip39.Generate(taken)
 	}
 	s.rcCfg.Rclone.Queues = append(s.rcCfg.Rclone.Queues, q)
 	if err := s.saveConfig(); err != nil {

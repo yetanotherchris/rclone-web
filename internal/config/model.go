@@ -1,9 +1,9 @@
 package config
 
 import (
-	"fmt"
 	"time"
 
+	"github.com/yetanotherchris/rclone-web/internal/bip39"
 	"gopkg.in/yaml.v3"
 )
 
@@ -87,17 +87,33 @@ func ParseConfig(data []byte) (*RcloneConfig, error) {
 	if cfg.Rclone.Jobs == nil {
 		cfg.Rclone.Jobs = []Job{}
 	}
+	takenJobIDs := make(map[string]bool, len(cfg.Rclone.Jobs))
+	for _, j := range cfg.Rclone.Jobs {
+		if j.ID != "" {
+			takenJobIDs[j.ID] = true
+		}
+	}
 	for i := range cfg.Rclone.Jobs {
 		if cfg.Rclone.Jobs[i].ID == "" {
-			cfg.Rclone.Jobs[i].ID = fmt.Sprintf("j%d", i)
+			id := bip39.Generate(takenJobIDs)
+			cfg.Rclone.Jobs[i].ID = id
+			takenJobIDs[id] = true
 		}
 	}
 	if cfg.Rclone.Queues == nil {
 		cfg.Rclone.Queues = []Queue{}
 	}
+	takenQueueIDs := make(map[string]bool, len(cfg.Rclone.Queues))
+	for _, q := range cfg.Rclone.Queues {
+		if q.ID != "" {
+			takenQueueIDs[q.ID] = true
+		}
+	}
 	for i := range cfg.Rclone.Queues {
 		if cfg.Rclone.Queues[i].ID == "" {
-			cfg.Rclone.Queues[i].ID = fmt.Sprintf("q%d", i)
+			id := bip39.Generate(takenQueueIDs)
+			cfg.Rclone.Queues[i].ID = id
+			takenQueueIDs[id] = true
 		}
 	}
 	return &cfg, nil
