@@ -64,6 +64,9 @@ func New(
 		shortLen:           shortLen,
 	}
 
+	// Load backend schema eagerly so password fields are ready before any job runs.
+	s.src.PasswordFields = remotes.ParsePasswordFields(s.loadBackends())
+
 	s.sessions = session.NewStore(
 		time.Duration(cfg.IdleTimeoutSeconds)*time.Second,
 		func() { s.lock() },

@@ -2,26 +2,70 @@ package remotes
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/yetanotherchris/rclone-web/internal/config"
+	"github.com/yetanotherchris/rclone-web/internal/obscure"
 )
 
 // EnvVarSource implements the env-var provider strategy: each provider key
 // becomes RCLONE_CONFIG_<NAME>_<KEY>.
-type EnvVarSource struct{}
+type EnvVarSource struct {
+	// PasswordFields maps backend type → field names that need obscuring.
+	// Populated from rclone's backend schema (IsPassword / Sensitive flags).
+	PasswordFields map[string]map[string]bool
+}
 
 // Env returns the environment variable slice for a run.
+// Fields marked as password/sensitive in the backend schema are automatically
+// obscured to match the format rclone expects for RCLONE_CONFIG_* env vars.
 func (e *EnvVarSource) Env(providers map[string]config.Provider) []string {
 	var env []string
 	for name, p := range providers {
 		prefix := fmt.Sprintf("RCLONE_CONFIG_%s_", strings.ToUpper(name))
 		env = append(env, prefix+"TYPE="+p.Type)
+		pwFields := e.PasswordFields[p.Type]
 		for k, v := range p.Extra {
+			if v != "" && pwFields[k] {
+				obs, err := obscure.Obscure(v)
+				if err != nil {
+					log.Printf("obscure field %s.%s: %v", name, k, err)
+				} else {
+					v = obs
+				}
+			}
 			env = append(env, prefix+strings.ToUpper(k)+"="+v)
 		}
 	}
 	return env
+}
+
+// ParsePasswordFields builds a PasswordFields map from the JSON returned by
+// "rclone config providers". Fields with IsPassword or Sensitive set to true
+// must be obscured when passed as RCLONE_CONFIG_* env vars.
+func ParsePasswordFields(backends []map[string]interface{}) map[string]map[string]bool {
+	result := make(map[string]map[string]bool)
+	for _, b := range backends {
+		name, _ := b["Name"].(string)
+		if name == "" {
+			continue
+		}
+		opts, _ := b["Options"].([]interface{})
+		for _, o := range opts {
+			opt, _ := o.(map[string]interface{})
+			fieldName, _ := opt["Name"].(string)
+			isPassword, _ := opt["IsPassword"].(bool)
+			sensitive, _ := opt["Sensitive"].(bool)
+			if fieldName != "" && (isPassword || sensitive) {
+				if result[name] == nil {
+					result[name] = make(map[string]bool)
+				}
+				result[name][fieldName] = true
+			}
+		}
+	}
+	return result
 }
 
 // Remote formats the rclone remote argument for one side of a job.
