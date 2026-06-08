@@ -297,6 +297,15 @@ export async function saveProvider() {
   const type = document.getElementById('p-type').value;
   if (!name) { showError('provform-error', 'Name is required'); return; }
 
+  if (type === 'crypt') {
+    const pwEl = document.getElementById('pf-password');
+    if (!pwEl || !pwEl.value.trim()) {
+      showError('provform-error', 'Password is required for crypt providers (minimum 1 character)');
+      pwEl && pwEl.focus();
+      return;
+    }
+  }
+
   // Collect fields from the generated form
   const extra = {};
   document.querySelectorAll('#p-fields [id^="pf-"], #p-fields-advanced [id^="pf-"]').forEach(el => {

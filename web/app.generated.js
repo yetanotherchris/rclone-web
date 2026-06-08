@@ -1972,6 +1972,14 @@
       showError("provform-error", "Name is required");
       return;
     }
+    if (type === "crypt") {
+      const pwEl = document.getElementById("pf-password");
+      if (!pwEl || !pwEl.value.trim()) {
+        showError("provform-error", "Password is required for crypt providers (minimum 1 character)");
+        pwEl && pwEl.focus();
+        return;
+      }
+    }
     const extra = {};
     document.querySelectorAll('#p-fields [id^="pf-"], #p-fields-advanced [id^="pf-"]').forEach((el) => {
       const key = el.id.replace("pf-", "");
