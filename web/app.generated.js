@@ -1799,6 +1799,17 @@
         const el = document.getElementById("pf-" + k);
         if (el) el.value = v;
       });
+      if (prov.type === "crypt" && prov.remote) {
+        const colon = prov.remote.indexOf(":");
+        const provPart = colon !== -1 ? prov.remote.slice(0, colon) : "";
+        const pathPart = colon !== -1 ? prov.remote.slice(colon + 1) : prov.remote;
+        const provSel = document.getElementById("crypt-remote-prov");
+        const pathInput = document.getElementById("crypt-remote-path");
+        const hidden = document.getElementById("pf-remote");
+        if (provSel) provSel.value = provPart;
+        if (pathInput) pathInput.value = pathPart;
+        if (hidden) hidden.value = prov.remote;
+      }
     }
   }
   function populateBackendTypeSelect() {
@@ -1836,12 +1847,38 @@
       const blob = options.find((o) => o.Name === "service_account_credentials");
       if (blob && !required.includes(blob)) required.unshift(blob);
     }
+    let cryptRemoteHTML = "";
+    if (type === "crypt") {
+      const remoteIdx = required.findIndex((o) => o.Name === "remote");
+      if (remoteIdx !== -1) required.splice(remoteIdx, 1);
+      const editingName = document.getElementById("p-name").value;
+      const providerOpts = state.providers.filter((p) => p.type !== "crypt" && p.name !== editingName).map((p) => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join("");
+      const envKey = prefix + "REMOTE";
+      const tooltip = `<span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">The provider whose storage will hold the encrypted files.<br><span style="opacity:0.65;font-style:italic">${esc(envKey)}</span></span></span>`;
+      cryptRemoteHTML = `<div>
+      <label class="mb-1 block text-sm font-semibold">Remote to encrypt/decrypt${tooltip}</label>
+      <div class="flex items-center gap-2">
+        <select id="crypt-remote-prov" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">${providerOpts || '<option value="">— no providers —</option>'}</select>
+        <span class="font-mono text-slate-400">:</span>
+        <input type="text" id="crypt-remote-path" placeholder="bucket/encrypted-folder" class="flex-1 rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm">
+      </div>
+      <input type="hidden" id="pf-remote">
+    </div>`;
+    }
     const fieldsEl = document.getElementById("p-fields");
     const advEl = document.getElementById("p-fields-advanced");
-    if (required.length) {
-      fieldsEl.innerHTML = required.map((o) => backendFieldHTML(o, prefix)).join("");
-    } else {
-      fieldsEl.innerHTML = '<p class="text-sm text-slate-400">This backend has no required fields. Check the Advanced tab for options or add custom keys there.</p>';
+    const schemaHTML = required.length ? required.map((o) => backendFieldHTML(o, prefix)).join("") : '<p class="text-sm text-slate-400">This backend has no required fields. Check the Advanced tab for options or add custom keys there.</p>';
+    fieldsEl.innerHTML = cryptRemoteHTML + schemaHTML;
+    if (type === "crypt") {
+      const provSel = fieldsEl.querySelector("#crypt-remote-prov");
+      const pathInput = fieldsEl.querySelector("#crypt-remote-path");
+      const hidden = fieldsEl.querySelector("#pf-remote");
+      const sync = () => {
+        if (hidden) hidden.value = provSel && provSel.value ? `${provSel.value}:${pathInput.value}` : pathInput.value;
+      };
+      provSel && provSel.addEventListener("change", sync);
+      pathInput && pathInput.addEventListener("input", sync);
+      sync();
     }
     if (advanced.length) {
       advEl.innerHTML = advanced.map((o) => backendFieldHTML(o, prefix)).join("");
