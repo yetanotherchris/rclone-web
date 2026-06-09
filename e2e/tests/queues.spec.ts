@@ -75,6 +75,54 @@ test('queue run detail shows job statuses', async ({ page }) => {
   await expect(rows.nth(1).locator('td').nth(1)).toContainText('success');
 });
 
+test('can edit a queue', async ({ page }) => {
+  const { url } = fixture();
+  await page.goto(url);
+  await expect(page.locator('#app')).toBeVisible({ timeout: 10_000 });
+
+  // Create a queue to edit
+  await page.locator('[data-nav="queues"]').click();
+  await page.locator('#new-queue-btn').click();
+  await expect(page.locator('[data-screen="queueform"]')).toBeVisible({ timeout: 5_000 });
+  await page.fill('#qf-name', 'Temp Queue To Edit');
+  await page.locator('#save-queue-btn').click();
+  await expect(page.locator('[data-screen="queues"]')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('#queues-tbody').getByText('Temp Queue To Edit')).toBeVisible();
+
+  // Edit it
+  const row = page.locator('#queues-tbody tr').filter({ hasText: 'Temp Queue To Edit' });
+  await row.locator('.edit-queue-btn').click();
+  await expect(page.locator('[data-screen="queueform"]')).toBeVisible({ timeout: 5_000 });
+  await page.fill('#qf-name', 'Temp Queue Updated');
+  await page.locator('#save-queue-btn').click();
+
+  await expect(page.locator('[data-screen="queues"]')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('#queues-tbody').getByText('Temp Queue Updated')).toBeVisible();
+  await expect(page.locator('#queues-tbody').getByText('Temp Queue To Edit')).toHaveCount(0);
+});
+
+test('can delete a queue', async ({ page }) => {
+  const { url } = fixture();
+  await page.goto(url);
+  await expect(page.locator('#app')).toBeVisible({ timeout: 10_000 });
+
+  // Create a queue to delete
+  await page.locator('[data-nav="queues"]').click();
+  await page.locator('#new-queue-btn').click();
+  await expect(page.locator('[data-screen="queueform"]')).toBeVisible({ timeout: 5_000 });
+  await page.fill('#qf-name', 'Temp Queue To Delete');
+  await page.locator('#save-queue-btn').click();
+  await expect(page.locator('[data-screen="queues"]')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('#queues-tbody').getByText('Temp Queue To Delete')).toBeVisible();
+
+  // Delete it
+  const row = page.locator('#queues-tbody tr').filter({ hasText: 'Temp Queue To Delete' });
+  page.once('dialog', dialog => dialog.accept());
+  await row.locator('.delete-queue-btn').click();
+
+  await expect(page.locator('#queues-tbody').getByText('Temp Queue To Delete')).toHaveCount(0, { timeout: 5_000 });
+});
+
 test('can create and delete a queue', async ({ page }) => {
   const { url } = fixture();
   await page.goto(url);
