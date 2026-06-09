@@ -30,6 +30,7 @@ export function renderJobsList() {
       <td class="px-5 py-4 text-xs">${lastRunCell(job)}</td>
       <td class="px-5 py-4 text-right">
         <button class="edit-job-btn text-xs font-medium text-brand-600 hover:underline" data-job-id="${job.id}">Edit</button>
+        <button class="clone-job-btn ml-3 text-xs font-medium text-slate-600 hover:underline" data-job-id="${job.id}">Clone</button>
         <button class="delete-job-btn ml-3 text-xs font-medium text-rose-600 hover:underline" data-job-id="${job.id}">Delete</button>
       </td>`;
     tbody.appendChild(tr);
@@ -37,6 +38,9 @@ export function renderJobsList() {
 
   tbody.querySelectorAll('.edit-job-btn').forEach(btn =>
     btn.addEventListener('click', () => openJobForm(btn.dataset.jobId))
+  );
+  tbody.querySelectorAll('.clone-job-btn').forEach(btn =>
+    btn.addEventListener('click', () => cloneJob(btn.dataset.jobId))
   );
   tbody.querySelectorAll('.delete-job-btn').forEach(btn =>
     btn.addEventListener('click', () => deleteJob(btn.dataset.jobId))
@@ -170,6 +174,37 @@ export async function saveJob() {
     showScreen('jobs');
   } catch (err) {
     showError('jobform-error', err.message);
+  }
+}
+
+async function cloneJob(id) {
+  const job = state.jobs.find(j => j.id === id);
+  if (!job) return;
+
+  const baseName = job.name + ' Clone';
+  const existingNames = new Set(state.jobs.map(j => j.name));
+  let cloneName = baseName;
+  let counter = 1;
+  while (existingNames.has(cloneName)) {
+    cloneName = `${baseName} ${counter++}`;
+  }
+
+  const clone = {
+    name: cloneName,
+    command: job.command,
+    source_provider: job.source_provider,
+    source_path: job.source_path,
+    dest_provider: job.dest_provider,
+    dest_path: job.dest_path,
+    extra_args: job.extra_args,
+  };
+
+  try {
+    await api('POST', '/api/jobs', clone);
+    state.jobs = await api('GET', '/api/jobs') || state.jobs;
+    renderJobsList();
+  } catch (err) {
+    alert('Clone failed: ' + err.message);
   }
 }
 
