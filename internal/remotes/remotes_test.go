@@ -175,3 +175,60 @@ func TestEnv(t *testing.T) {
 		t.Errorf("missing ACCOUNT env: got %v", env)
 	}
 }
+
+// TestParsePasswordFields_onlyIsPassword guards the obscuring rule: only
+// IsPassword fields may be obscured. Sensitive-only fields (e.g. drive's
+// "token", which rclone json.Unmarshal's raw) must pass through untouched.
+func TestParsePasswordFields_onlyIsPassword(t *testing.T) {
+	backends := []map[string]interface{}{
+		{
+			"Name": "drive",
+			"Options": []interface{}{
+				map[string]interface{}{"Name": "token", "Sensitive": true},
+				map[string]interface{}{"Name": "client_secret", "Sensitive": true},
+			},
+		},
+		{
+			"Name": "crypt",
+			"Options": []interface{}{
+				map[string]interface{}{"Name": "password", "IsPassword": true},
+			},
+		},
+	}
+	pw := ParsePasswordFields(backends)
+	if pw["drive"]["token"] {
+		t.Errorf("drive.token is Sensitive-only and must not be obscured")
+	}
+	if pw["drive"]["client_secret"] {
+		t.Errorf("drive.client_secret is Sensitive-only and must not be obscured")
+	}
+	if !pw["crypt"]["password"] {
+		t.Errorf("crypt.password is IsPassword and must be obscured")
+	}
+}
+
+// TestEnv_sensitiveTokenNotObscured ensures a Sensitive-only field is emitted
+// verbatim even when PasswordFields is populated from the backend schema.
+func TestEnv_sensitiveTokenNotObscured(t *testing.T) {
+	src := &EnvVarSource{
+		PasswordFields: ParsePasswordFields([]map[string]interface{}{
+			{
+				"Name": "drive",
+				"Options": []interface{}{
+					map[string]interface{}{"Name": "token", "Sensitive": true},
+				},
+			},
+		}),
+	}
+	tok := `{"access_token":"ya29.x","token_type":"Bearer"}`
+	providers := map[string]config.Provider{
+		"gdrive": {Type: "drive", Extra: map[string]string{"token": tok}},
+	}
+	want := "RCLONE_CONFIG_GDRIVE_TOKEN=" + tok
+	for _, e := range src.Env(providers) {
+		if e == want {
+			return
+		}
+	}
+	t.Errorf("token was not passed through verbatim; want %q in %v", want, src.Env(providers))
+}
