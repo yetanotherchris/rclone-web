@@ -90,6 +90,10 @@ export function openProvForm(name) {
       if (el) el.value = v;
     });
 
+    // Re-filter provider-scoped suggestions now that pf-provider holds the
+    // saved value (assigning .value above doesn't fire a change event).
+    refreshProviderScopedFields();
+
     // For crypt, split the stored "provider:path" into the composite widget parts.
     if (prov.type === 'crypt' && prov.remote) {
       const colon = prov.remote.indexOf(':');
@@ -206,6 +210,44 @@ export function renderProviderFields() {
     advEl.innerHTML = '<p class="text-sm text-slate-400">No advanced options for this backend.</p>';
   }
   wirePasswordFields(advEl);
+
+  // Provider-scoped example fields (S3 endpoint/region) re-filter whenever the
+  // chosen S3 provider changes. Fill them once for the default provider too.
+  const provEl = document.getElementById('pf-provider');
+  if (provEl) provEl.addEventListener('change', refreshProviderScopedFields);
+  refreshProviderScopedFields();
+}
+
+// True when an example with no Provider tag, or whose tag matches the selected
+// provider, should be offered. Mirrors rclone's matcher: a Provider tag is a
+// comma-separated list, optionally negated with a leading "!".
+function exampleMatchesProvider(exampleProvider, selected) {
+  if (!exampleProvider || !selected) return true;
+  let list = exampleProvider, negate = false;
+  if (list[0] === '!') { negate = true; list = list.slice(1); }
+  const names = list.split(',').map(s => s.trim());
+  const inList = names.includes(selected);
+  return negate ? !inList : inList;
+}
+
+// Repopulate the <datalist> behind each provider-scoped combobox so it only
+// suggests endpoints/regions for the currently selected S3 provider.
+export function refreshProviderScopedFields() {
+  const type = document.getElementById('p-type').value;
+  const backend = state.backends && state.backends.find(b => b.Name === type);
+  const options = (backend && backend.Options) || [];
+  const provEl = document.getElementById('pf-provider');
+  const selected = provEl ? provEl.value : '';
+
+  options.forEach(o => {
+    if (!Array.isArray(o.Examples) || !o.Examples.some(ex => ex.Provider)) return;
+    const list = document.getElementById(`pf-${o.Name}-list`);
+    if (!list) return;
+    list.innerHTML = o.Examples
+      .filter(ex => exampleMatchesProvider(ex.Provider, selected))
+      .map(ex => `<option value="${esc(ex.Value)}">${esc(ex.Help || '')}</option>`)
+      .join('');
+  });
 }
 
 function backendFieldHTML(opt, prefix) {
@@ -238,6 +280,15 @@ function backendFieldHTML(opt, prefix) {
       <input type="password" id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm pr-10">
       <button type="button" class="pw-eye absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600" data-target="pf-${esc(key)}" title="Show/hide password">${eyeShow}${eyeHide}</button>
     </div>`;
+  } else if (opt.Examples && opt.Examples.some(ex => ex.Provider)) {
+    // Provider-scoped suggestions (S3 endpoint/region): rclone tags each example
+    // with the S3 provider it belongs to. A flat list of all 300+ endpoints is
+    // useless because you can't tell which one is for which provider, so render
+    // an editable combobox whose datalist is filtered to the selected provider
+    // (refreshProviderScopedFields). Free-text keeps custom/"Other" endpoints valid.
+    const listId = `pf-${esc(key)}-list`;
+    input = `<input type="text" id="pf-${esc(key)}" list="${listId}" autocomplete="off" placeholder="leave blank for the provider default" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm">
+      <datalist id="${listId}"></datalist>`;
   } else if (opt.Examples && opt.Examples.length > 1) {
     const opts = opt.Examples.map(ex => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join('');
     input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
