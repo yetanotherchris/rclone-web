@@ -1830,6 +1830,7 @@
         const el = document.getElementById("pf-" + k);
         if (el) el.value = v;
       });
+      refreshProviderScopedFields();
       if (prov.type === "crypt" && prov.remote) {
         const colon = prov.remote.indexOf(":");
         const provPart = colon !== -1 ? prov.remote.slice(0, colon) : "";
@@ -1918,6 +1919,33 @@
       advEl.innerHTML = '<p class="text-sm text-slate-400">No advanced options for this backend.</p>';
     }
     wirePasswordFields(advEl);
+    const provEl = document.getElementById("pf-provider");
+    if (provEl) provEl.addEventListener("change", refreshProviderScopedFields);
+    refreshProviderScopedFields();
+  }
+  function exampleMatchesProvider(exampleProvider, selected) {
+    if (!exampleProvider || !selected) return true;
+    let list = exampleProvider, negate = false;
+    if (list[0] === "!") {
+      negate = true;
+      list = list.slice(1);
+    }
+    const names = list.split(",").map((s) => s.trim());
+    const inList = names.includes(selected);
+    return negate ? !inList : inList;
+  }
+  function refreshProviderScopedFields() {
+    const type = document.getElementById("p-type").value;
+    const backend = state.backends && state.backends.find((b) => b.Name === type);
+    const options = backend && backend.Options || [];
+    const provEl = document.getElementById("pf-provider");
+    const selected = provEl ? provEl.value : "";
+    options.forEach((o) => {
+      if (!Array.isArray(o.Examples) || !o.Examples.some((ex) => ex.Provider)) return;
+      const list = document.getElementById(`pf-${o.Name}-list`);
+      if (!list) return;
+      list.innerHTML = o.Examples.filter((ex) => exampleMatchesProvider(ex.Provider, selected)).map((ex) => `<option value="${esc(ex.Value)}">${esc(ex.Help || "")}</option>`).join("");
+    });
   }
   function backendFieldHTML(opt, prefix) {
     const key = opt.Name || "";
@@ -1946,6 +1974,10 @@
       <input type="password" id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm pr-10">
       <button type="button" class="pw-eye absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600" data-target="pf-${esc(key)}" title="Show/hide password">${eyeShow}${eyeHide}</button>
     </div>`;
+    } else if (opt.Examples && opt.Examples.some((ex) => ex.Provider)) {
+      const listId = `pf-${esc(key)}-list`;
+      input = `<input type="text" id="pf-${esc(key)}" list="${listId}" autocomplete="off" placeholder="leave blank for the provider default" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm">
+      <datalist id="${listId}"></datalist>`;
     } else if (opt.Examples && opt.Examples.length > 1) {
       const opts = opt.Examples.map((ex) => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join("");
       input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
