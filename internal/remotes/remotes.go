@@ -42,8 +42,16 @@ func (e *EnvVarSource) Env(providers map[string]config.Provider) []string {
 }
 
 // ParsePasswordFields builds a PasswordFields map from the JSON returned by
-// "rclone config providers". Fields with IsPassword or Sensitive set to true
-// must be obscured when passed as RCLONE_CONFIG_* env vars.
+// "rclone config providers". Only fields with IsPassword set to true are
+// included: rclone stores those obscured and reveals them itself at read time,
+// so they must be obscured when passed as RCLONE_CONFIG_* env vars.
+//
+// Fields marked only Sensitive must NOT be obscured. Sensitive is purely a
+// "redact in logs/`config show`" hint and says nothing about the on-disk or
+// on-wire encoding; rclone consumes those values raw. Obscuring them breaks the
+// backend — e.g. drive's "token" is Sensitive (not IsPassword) and is
+// json.Unmarshal'd directly, so an obscured blob yields
+// "invalid character ... looking for beginning of value".
 func ParsePasswordFields(backends []map[string]interface{}) map[string]map[string]bool {
 	result := make(map[string]map[string]bool)
 	for _, b := range backends {
@@ -56,8 +64,7 @@ func ParsePasswordFields(backends []map[string]interface{}) map[string]map[strin
 			opt, _ := o.(map[string]interface{})
 			fieldName, _ := opt["Name"].(string)
 			isPassword, _ := opt["IsPassword"].(bool)
-			sensitive, _ := opt["Sensitive"].(bool)
-			if fieldName != "" && (isPassword || sensitive) {
+			if fieldName != "" && isPassword {
 				if result[name] == nil {
 					result[name] = make(map[string]bool)
 				}
