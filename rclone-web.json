@@ -1,11 +1,11 @@
 {
   "homepage": "https://github.com/yetanotherchris/rclone-web",
   "description": "Web frontend for rclone to manage and run jobs from your browser",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "architecture": {
     "64bit": {
-      "url": "https://github.com/yetanotherchris/rclone-web/releases/download/v1.0.2/rclone-web-windows-amd64.exe",
-      "hash": "e7053751cfb427a305b07c46e7f881d6855ae1ee6bf8088aabbc4db0ea21ef18",
+      "url": "https://github.com/yetanotherchris/rclone-web/releases/download/v1.0.3/rclone-web-windows-amd64.exe",
+      "hash": "3745f7e2a595a1166aec1d1022691da252bd94f010e9219ab726385688669267",
       "bin": [
         [
           "rclone-web-windows-amd64.exe",

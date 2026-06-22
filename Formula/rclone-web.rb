@@ -1,25 +1,25 @@
 class RcloneWeb < Formula
   desc "Web frontend for rclone to manage and run jobs from your browser"
   homepage "https://github.com/yetanotherchris/rclone-web"
-  version "1.0.2"
+  version "1.0.3"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/yetanotherchris/rclone-web/releases/download/v1.0.2/rclone-web-darwin-arm64.tar.gz"
-      sha256 "7142b9708653e2ba4adca3dad5559fa6d022c3e74519ae89005b7a3cadcc702c"
+      url "https://github.com/yetanotherchris/rclone-web/releases/download/v1.0.3/rclone-web-darwin-arm64.tar.gz"
+      sha256 "fc3c694fd3c0618607cf75dccda3251938f1fbfe83ebfc9e71abb7ed917f82e5"
     else
-      url "https://github.com/yetanotherchris/rclone-web/releases/download/v1.0.2/rclone-web-darwin-amd64.tar.gz"
-      sha256 "ee205082c6d9d942a59dea6c26d0eb997d88862d539cd05cc416e26857dd205e"
+      url "https://github.com/yetanotherchris/rclone-web/releases/download/v1.0.3/rclone-web-darwin-amd64.tar.gz"
+      sha256 "ac9aa98889cd4a244c750f37f19ec5c9c05ab2b90523072d784f0817acceb9d8"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/yetanotherchris/rclone-web/releases/download/v1.0.2/rclone-web-linux-arm64.tar.gz"
-      sha256 "605cbffb6e62f7c18fc428437891875d433330452c17911169fd59a635906ccd"
+      url "https://github.com/yetanotherchris/rclone-web/releases/download/v1.0.3/rclone-web-linux-arm64.tar.gz"
+      sha256 "b6ba8c4b2af6f78531b6351ab97795e77e5d5c2a497bd3e82ac928166c55505e"
     else
-      url "https://github.com/yetanotherchris/rclone-web/releases/download/v1.0.2/rclone-web-linux-amd64.tar.gz"
-      sha256 "0b5999720c195354fa58853e7f513e1e00272045fe7cbfcc7e0da2b672c266ae"
+      url "https://github.com/yetanotherchris/rclone-web/releases/download/v1.0.3/rclone-web-linux-amd64.tar.gz"
+      sha256 "0190fdb999e790b5c695b7e7214171d591e51feec9591bb3dcf9adcf9adac572"
     end
   end
 
