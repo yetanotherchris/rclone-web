@@ -16,7 +16,7 @@ export function renderJobsList() {
     return;
   }
 
-  state.jobs.forEach(job => {
+  state.jobs.sort((a, b) => a.name.localeCompare(b.name)).forEach(job => {
     const cmdBadge = `<span class="rounded bg-${cmdColor(job.command)}-100 px-2 py-0.5 font-mono text-xs ${cmdColor(job.command) !== 'slate' ? 'text-' + cmdColor(job.command) + '-700' : 'text-slate-600'}">${esc(job.command)}</span>`;
     const srcRemote = formatRemote(job.source_provider, job.source_path);
     const dstRemote = isOneSided(job.command) ? '—' : formatRemote(job.dest_provider, job.dest_path);
