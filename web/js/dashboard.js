@@ -23,7 +23,7 @@ export function renderDashboard() {
     const link = tbody.querySelector('.dash-add-link');
     if (link) link.addEventListener('click', (e) => { e.preventDefault(); showScreen('jobs'); });
   } else {
-    state.jobs.forEach(job => {
+    state.jobs.sort((a, b) => a.name.localeCompare(b.name)).forEach(job => {
       const route = formatRoute(job);
       const lastRun = job.lastRun;
       let statusBadge;
