@@ -105,6 +105,49 @@ func TestAssembleArgv_dryRun(t *testing.T) {
 	}
 }
 
+// TestAssembleArgv_blankPathIsRemoteRoot ensures a blank source/dest path is
+// only rejected for a bare local path. When a provider is set, a blank path
+// is valid rclone syntax for the remote's root (e.g. "b2notescrypt:").
+func TestAssembleArgv_blankPathIsRemoteRoot(t *testing.T) {
+	src := &EnvVarSource{}
+	cfg := &config.RcloneConfig{}
+	cfg.Rclone.Providers = map[string]config.Provider{
+		"b2notescrypt": {Type: "crypt"},
+	}
+	job := &config.Job{
+		Command:        "copy",
+		SourceProvider: "",
+		SourcePath:     "D:/Photos",
+		DestProvider:   "b2notescrypt",
+		DestPath:       "",
+	}
+	argv, err := AssembleArgv(src, cfg, job, false)
+	if err != nil {
+		t.Fatalf("AssembleArgv: %v", err)
+	}
+	want := "b2notescrypt:"
+	if argv[2] != want {
+		t.Errorf("dest remote: got %q, want %q", argv[2], want)
+	}
+}
+
+// TestAssembleArgv_blankLocalPathErrors ensures a bare local path (no
+// provider) with no path is still rejected — there's nothing to run against.
+func TestAssembleArgv_blankLocalPathErrors(t *testing.T) {
+	src := &EnvVarSource{}
+	cfg := &config.RcloneConfig{}
+	job := &config.Job{
+		Command:        "copy",
+		SourceProvider: "",
+		SourcePath:     "",
+		DestProvider:   "",
+		DestPath:       "D:/backup",
+	}
+	if _, err := AssembleArgv(src, cfg, job, false); err == nil {
+		t.Errorf("expected error for blank local source path, got nil")
+	}
+}
+
 func TestAssembleArgv_oneSided(t *testing.T) {
 	src := &EnvVarSource{}
 	cfg := &config.RcloneConfig{}
