@@ -107,7 +107,10 @@ func AssembleArgv(
 	job *config.Job,
 	dryRun bool,
 ) ([]string, error) {
-	if job.SourcePath == "" {
+	// A blank path is only invalid for a bare local path (no provider) — there's
+	// nothing to run rclone against. For a named provider, a blank path is valid
+	// and means the remote's root (e.g. "b2notescrypt:").
+	if job.SourceProvider == "" && job.SourcePath == "" {
 		return nil, fmt.Errorf("job %q has no source", job.DisplayName())
 	}
 
@@ -119,7 +122,7 @@ func AssembleArgv(
 	argv := []string{cmd, buildRemote(src, cfg, job.SourceProvider, job.SourcePath)}
 
 	if !IsOneSided(cmd) {
-		if job.DestPath == "" {
+		if job.DestProvider == "" && job.DestPath == "" {
 			return nil, fmt.Errorf("job %q has no destination", job.DisplayName())
 		}
 		argv = append(argv, buildRemote(src, cfg, job.DestProvider, job.DestPath))

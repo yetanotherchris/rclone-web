@@ -289,16 +289,23 @@ function backendFieldHTML(opt, prefix) {
     const listId = `pf-${esc(key)}-list`;
     input = `<input type="text" id="pf-${esc(key)}" list="${listId}" autocomplete="off" placeholder="leave blank for the provider default" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm">
       <datalist id="${listId}"></datalist>`;
-  } else if (opt.Examples && opt.Examples.length > 1) {
-    const opts = opt.Examples.map(ex => `<option value="${esc(ex.Value)}">${esc(ex.Help || ex.Value)}</option>`).join('');
-    input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
   } else if (opt.Type === 'bool') {
+    // Checked before the generic Examples/select branch below: some bool options
+    // (e.g. crypt's no_data_encryption, directory_name_encryption) carry Examples
+    // too (rclone uses them for its own CLI prompts). Rendering those as a <select>
+    // would silently default to whichever option rclone listed first — not
+    // necessarily the real default — since a plain <select> has no notion of the
+    // schema's Default. The toggle below reads DefaultStr/Default correctly.
     const def = opt.DefaultStr !== undefined ? opt.DefaultStr : (opt.Default !== undefined ? String(opt.Default) : '');
     const checked = def === 'true' ? ' checked' : '';
     return `<div class="flex items-center gap-3 py-1">
       <label class="toggle shrink-0"><input type="checkbox" id="pf-${esc(key)}" class="toggle-cb"${checked}><span class="toggle-track"></span></label>
       <label for="pf-${esc(key)}" class="text-sm font-semibold cursor-pointer">${esc(label)}${tooltipHtml}</label>
     </div>`;
+  } else if (opt.Examples && opt.Examples.length > 1) {
+    const selectedDefault = opt.DefaultStr !== undefined ? opt.DefaultStr : (opt.Default !== undefined ? String(opt.Default) : undefined);
+    const opts = opt.Examples.map(ex => `<option value="${esc(ex.Value)}"${ex.Value === selectedDefault ? ' selected' : ''}>${esc(ex.Help || ex.Value)}</option>`).join('');
+    input = `<select id="pf-${esc(key)}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${opts}</select>`;
   } else {
     const t = opt.Type === 'int' ? 'number' : 'text';
     const def = opt.DefaultStr !== undefined ? opt.DefaultStr : (opt.Default !== undefined ? String(opt.Default) : '');
