@@ -262,7 +262,7 @@
                 <div>
                   <label class="mb-1 block text-sm font-semibold">Command</label>
                   <select id="f-cmd" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none">
-                    <option>copy</option><option>sync</option><option>move</option><option>check</option><option>lsf</option>
+                    <option>copy</option><option>sync</option><option>bisync</option><option>move</option><option>check</option><option>lsf</option>
                   </select>
                 </div>
 
@@ -294,6 +294,37 @@
               <div>
                 <label class="mb-1 block text-sm font-semibold">Extra args <span class="font-normal text-slate-400">(space-separated)</span></label>
                 <textarea id="f-extra" rows="3" class="w-full rounded-lg border border-slate-300 bg-slate-900 px-3 py-2 font-mono text-sm text-emerald-300 placeholder-slate-500 focus:border-brand-500 focus:outline-none" placeholder="--exclude *.tmp --dry-run"></textarea>
+              </div>
+              <div id="bisync-options-field" class="hidden grid grid-cols-2 gap-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
+                <div class="col-span-2 text-sm font-semibold text-slate-700">Bisync options</div>
+                <div>
+                  <label class="mb-1 block text-sm font-semibold">Resync mode <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">Which side wins when establishing the baseline (--resync). "path1" = source, "path2" = destination.</span></span></label>
+                  <select id="f-resync-mode" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none">
+                    <option value="">(rclone default: path1)</option>
+                    <option value="path1">path1 (favor source)</option>
+                    <option value="path2">path2 (favor destination)</option>
+                    <option value="newer">newer</option>
+                    <option value="older">older</option>
+                    <option value="larger">larger</option>
+                    <option value="smaller">smaller</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-sm font-semibold">Conflict resolve <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">Which side wins when the same file changed on both sides since the last run. Left blank, bisync keeps both and renames them (.conflict1/.conflict2) instead of picking automatically.</span></span></label>
+                  <select id="f-conflict-resolve" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none">
+                    <option value="">none (keep both, rename)</option>
+                    <option value="path1">path1 (favor source)</option>
+                    <option value="path2">path2 (favor destination)</option>
+                    <option value="newer">newer</option>
+                    <option value="older">older</option>
+                    <option value="larger">larger</option>
+                    <option value="smaller">smaller</option>
+                  </select>
+                </div>
+              </div>
+              <div id="backup-dir-field" class="hidden">
+                <label class="mb-1 block text-sm font-semibold">Backup dir <span class="font-normal text-slate-400">(optional)</span> <span class="tt" style="vertical-align:middle"><span style="font-size:0.7rem;color:#94a3b8;cursor:help;font-weight:400">ⓘ</span><span class="tt-tip wide">Instead of deleting or overwriting a file, rclone moves the old version here first. Supported by sync, move, and bisync.</span></span></label>
+                <input id="f-backup-dir" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none" />
               </div>
               <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
                 <h3 class="mb-3 text-sm font-semibold text-slate-700">Common extra args</h3>
@@ -414,6 +445,10 @@
         <!-- Confirm dialog for destructive commands -->
         <div id="confirm-box" class="mb-4 hidden rounded-lg border border-amber-300 bg-amber-50 p-4">
           <p class="mb-3 text-sm font-medium text-amber-800">⚠ This job uses <span id="confirm-cmd" class="font-mono"></span> which can permanently modify or delete files. Continue?</p>
+          <div id="confirm-resync-row" class="mb-3 hidden flex items-center gap-2">
+            <input type="checkbox" id="confirm-resync" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+            <label for="confirm-resync" class="text-sm text-amber-800">First run — establish baseline (<span class="font-mono">--resync</span>)</label>
+          </div>
           <div class="flex gap-3">
             <button id="confirm-yes" class="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700">Continue</button>
             <button id="confirm-no" class="rounded-lg border border-amber-300 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100">Cancel</button>

@@ -101,11 +101,16 @@ func buildRemote(src *EnvVarSource, cfg *config.RcloneConfig, providerName, path
 // AssembleArgv builds the full rclone argument list for a job run (not a shell
 // string — each token is a discrete argv element). Command defaults to "sync"
 // when not set.
+//
+// resync requests "--resync" for a "bisync" job (establishing/re-establishing
+// the baseline on the first run). It is a per-run choice, not part of the
+// job's persisted config, and is ignored for any other command.
 func AssembleArgv(
 	src *EnvVarSource,
 	cfg *config.RcloneConfig,
 	job *config.Job,
 	dryRun bool,
+	resync bool,
 ) ([]string, error) {
 	// A blank path is only invalid for a bare local path (no provider) — there's
 	// nothing to run rclone against. For a named provider, a blank path is valid
@@ -126,6 +131,22 @@ func AssembleArgv(
 			return nil, fmt.Errorf("job %q has no destination", job.DisplayName())
 		}
 		argv = append(argv, buildRemote(src, cfg, job.DestProvider, job.DestPath))
+	}
+
+	if cmd == "bisync" {
+		if resync {
+			argv = append(argv, "--resync")
+			if job.ResyncMode != "" {
+				argv = append(argv, "--resync-mode", job.ResyncMode)
+			}
+		}
+		if job.ConflictResolve != "" {
+			argv = append(argv, "--conflict-resolve", job.ConflictResolve)
+		}
+	}
+
+	if job.BackupDir != "" && supportsBackupDir(cmd) {
+		argv = append(argv, "--backup-dir", job.BackupDir)
 	}
 
 	if cfg.Rclone.Flags != "" {
@@ -179,6 +200,15 @@ func argvHasVerbosityFlag(argv []string) bool {
 func IsOneSided(cmd string) bool {
 	switch cmd {
 	case "lsf", "ls", "lsl", "lsjson", "lsd":
+		return true
+	}
+	return false
+}
+
+// supportsBackupDir reports whether cmd accepts rclone's --backup-dir flag.
+func supportsBackupDir(cmd string) bool {
+	switch cmd {
+	case "sync", "move", "bisync":
 		return true
 	}
 	return false

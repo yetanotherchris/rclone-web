@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { api } from './api.js';
 import { showScreen } from './screens.js';
 
-const DESTRUCTIVE = ['sync', 'move'];
+const DESTRUCTIVE = ['sync', 'move', 'bisync'];
 
 export function startRunFlow(jobId, dryRun) {
   state.pendingRunJobId = jobId;
@@ -24,7 +24,14 @@ export function startRunFlow(jobId, dryRun) {
   document.getElementById('run-status-badge').className = 'rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700';
   document.getElementById('stop-btn').classList.remove('hidden');
 
-  if (!dryRun && DESTRUCTIVE.includes(job.command)) {
+  const resyncRow = document.getElementById('confirm-resync-row');
+  document.getElementById('confirm-resync').checked = false;
+  resyncRow.classList.toggle('hidden', job.command !== 'bisync');
+
+  // bisync always shows the box (even for a dry-run) so --resync can be
+  // toggled for the first run; other destructive commands only pause for a
+  // real (non-dry) run.
+  if (job.command === 'bisync' || (!dryRun && DESTRUCTIVE.includes(job.command))) {
     document.getElementById('confirm-cmd').textContent = job.command;
     document.getElementById('confirm-box').classList.remove('hidden');
     showScreen('run');
@@ -36,10 +43,15 @@ export function startRunFlow(jobId, dryRun) {
 }
 
 export async function proceedWithRun() {
+  const resync = !document.getElementById('confirm-resync-row').classList.contains('hidden')
+    && document.getElementById('confirm-resync').checked;
   document.getElementById('confirm-box').classList.add('hidden');
 
   try {
-    const qs = state.pendingRunDryRun ? '?dryRun=true' : '';
+    const params = [];
+    if (state.pendingRunDryRun) params.push('dryRun=true');
+    if (resync) params.push('resync=true');
+    const qs = params.length ? `?${params.join('&')}` : '';
     const data = await api('POST', `/api/jobs/${state.pendingRunJobId}/run${qs}`);
     if (!data) return;
     state.currentRun = { id: data.runId, jobId: state.pendingRunJobId };

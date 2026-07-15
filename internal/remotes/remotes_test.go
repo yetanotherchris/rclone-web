@@ -43,7 +43,7 @@ func TestAssembleArgv(t *testing.T) {
 		ExtraArgs:      "--exclude *.tmp",
 	}
 
-	argv, err := AssembleArgv(src, cfg, job, false)
+	argv, err := AssembleArgv(src, cfg, job, false, false)
 	if err != nil {
 		t.Fatalf("AssembleArgv: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestAssembleArgv_defaultsToSync(t *testing.T) {
 		DestProvider:   "b2",
 		DestPath:       "myuser-drive/2026",
 	}
-	argv, err := AssembleArgv(src, cfg, job, false)
+	argv, err := AssembleArgv(src, cfg, job, false, false)
 	if err != nil {
 		t.Fatalf("AssembleArgv: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestAssembleArgv_dryRun(t *testing.T) {
 		DestProvider: "b2",
 		DestPath:     "bucket/dst",
 	}
-	argv, err := AssembleArgv(src, cfg, job, true)
+	argv, err := AssembleArgv(src, cfg, job, true, false)
 	if err != nil {
 		t.Fatalf("AssembleArgv: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestAssembleArgv_blankPathIsRemoteRoot(t *testing.T) {
 		DestProvider:   "b2notescrypt",
 		DestPath:       "",
 	}
-	argv, err := AssembleArgv(src, cfg, job, false)
+	argv, err := AssembleArgv(src, cfg, job, false, false)
 	if err != nil {
 		t.Fatalf("AssembleArgv: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestAssembleArgv_blankLocalPathErrors(t *testing.T) {
 		DestProvider:   "",
 		DestPath:       "D:/backup",
 	}
-	if _, err := AssembleArgv(src, cfg, job, false); err == nil {
+	if _, err := AssembleArgv(src, cfg, job, false, false); err == nil {
 		t.Errorf("expected error for blank local source path, got nil")
 	}
 }
@@ -159,7 +159,7 @@ func TestAssembleArgv_oneSided(t *testing.T) {
 		SourceProvider: "b2",
 		SourcePath:     "my-bucket",
 	}
-	argv, err := AssembleArgv(src, cfg, job, false)
+	argv, err := AssembleArgv(src, cfg, job, false, false)
 	if err != nil {
 		t.Fatalf("AssembleArgv: %v", err)
 	}
@@ -187,13 +187,126 @@ func TestAssembleArgv_respectsExplicitVerbosity(t *testing.T) {
 		DestPath:       "bucket/dst",
 		ExtraArgs:      "--progress",
 	}
-	argv, err := AssembleArgv(src, cfg, job, false)
+	argv, err := AssembleArgv(src, cfg, job, false, false)
 	if err != nil {
 		t.Fatalf("AssembleArgv: %v", err)
 	}
 	for _, a := range argv {
 		if a == "-v" {
 			t.Errorf("default -v should not be added when --progress is set: %v", argv)
+		}
+	}
+}
+
+func TestAssembleArgv_bisync(t *testing.T) {
+	src := &EnvVarSource{}
+	cfg := &config.RcloneConfig{}
+	cfg.Rclone.Providers = map[string]config.Provider{
+		"b2": {Type: "b2"},
+	}
+	job := &config.Job{
+		Command:        "bisync",
+		SourceProvider: "",
+		SourcePath:     "D:/Photos",
+		DestProvider:   "b2",
+		DestPath:       "my-bucket/photos",
+	}
+
+	// Steady-state run: no --resync, no --resync-mode.
+	argv, err := AssembleArgv(src, cfg, job, false, false)
+	if err != nil {
+		t.Fatalf("AssembleArgv: %v", err)
+	}
+	for _, a := range argv {
+		if a == "--resync" || a == "--resync-mode" {
+			t.Errorf("steady-state bisync run should not include %q: %v", a, argv)
+		}
+	}
+
+	// First run: resync=true adds --resync (and --resync-mode if set).
+	job.ResyncMode = "path2"
+	argv, err = AssembleArgv(src, cfg, job, false, true)
+	if err != nil {
+		t.Fatalf("AssembleArgv: %v", err)
+	}
+	want := []string{"bisync", "D:/Photos", "b2:my-bucket/photos", "--resync", "--resync-mode", "path2", "-v"}
+	if len(argv) != len(want) {
+		t.Fatalf("len mismatch: got %v, want %v", argv, want)
+	}
+	for i, v := range want {
+		if argv[i] != v {
+			t.Errorf("argv[%d]: got %q, want %q", i, argv[i], v)
+		}
+	}
+}
+
+func TestAssembleArgv_bisyncConflictResolve(t *testing.T) {
+	src := &EnvVarSource{}
+	cfg := &config.RcloneConfig{}
+	cfg.Rclone.Providers = map[string]config.Provider{"b2": {Type: "b2"}}
+	job := &config.Job{
+		Command:         "bisync",
+		SourcePath:      "D:/Photos",
+		DestProvider:    "b2",
+		DestPath:        "my-bucket/photos",
+		ConflictResolve: "path2",
+	}
+	argv, err := AssembleArgv(src, cfg, job, false, false)
+	if err != nil {
+		t.Fatalf("AssembleArgv: %v", err)
+	}
+	found := false
+	for i, a := range argv {
+		if a == "--conflict-resolve" && i+1 < len(argv) && argv[i+1] == "path2" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected --conflict-resolve path2 in argv, got %v", argv)
+	}
+}
+
+func TestAssembleArgv_backupDir(t *testing.T) {
+	src := &EnvVarSource{}
+	cfg := &config.RcloneConfig{}
+	cfg.Rclone.Providers = map[string]config.Provider{"b2": {Type: "b2"}}
+
+	sync := &config.Job{
+		Command:      "sync",
+		SourcePath:   "D:/Photos",
+		DestProvider: "b2",
+		DestPath:     "my-bucket/photos",
+		BackupDir:    "D:/backups",
+	}
+	argv, err := AssembleArgv(src, cfg, sync, false, false)
+	if err != nil {
+		t.Fatalf("AssembleArgv: %v", err)
+	}
+	found := false
+	for i, a := range argv {
+		if a == "--backup-dir" && i+1 < len(argv) && argv[i+1] == "D:/backups" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected --backup-dir D:/backups in argv, got %v", argv)
+	}
+
+	// check doesn't support --backup-dir, so it must not be added even if set.
+	check := &config.Job{
+		Command:      "check",
+		SourcePath:   "D:/Photos",
+		DestProvider: "b2",
+		DestPath:     "my-bucket/photos",
+		BackupDir:    "D:/backups",
+	}
+	argv, err = AssembleArgv(src, cfg, check, false, false)
+	if err != nil {
+		t.Fatalf("AssembleArgv: %v", err)
+	}
+	for _, a := range argv {
+		if a == "--backup-dir" {
+			t.Errorf("check should not receive --backup-dir: %v", argv)
 		}
 	}
 }

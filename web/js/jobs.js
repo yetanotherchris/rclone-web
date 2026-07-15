@@ -48,7 +48,7 @@ export function renderJobsList() {
 }
 
 function cmdColor(cmd) {
-  const colors = { copy: 'slate', sync: 'amber', move: 'rose', check: 'sky', lsf: 'violet' };
+  const colors = { copy: 'slate', sync: 'amber', bisync: 'orange', move: 'rose', check: 'sky', lsf: 'violet' };
   return colors[cmd] || 'slate';
 }
 
@@ -86,6 +86,9 @@ export function openJobForm(jobId) {
   document.getElementById('f-spath').value = job ? (job.source_path || '') : '';
   document.getElementById('f-dpath').value = job ? (job.dest_path || '') : '';
   document.getElementById('f-extra').value = job && job.extra_args && job.extra_args !== 'undefined' ? job.extra_args : '';
+  document.getElementById('f-resync-mode').value = job ? (job.resync_mode || '') : '';
+  document.getElementById('f-conflict-resolve').value = job ? (job.conflict_resolve || '') : '';
+  document.getElementById('f-backup-dir').value = job ? (job.backup_dir || '') : '';
   clearError('jobform-error');
 
   // Populate provider dropdowns
@@ -96,6 +99,7 @@ export function openJobForm(jobId) {
   }
 
   toggleDestFields();
+  toggleCommandOptionFields();
   updatePathPlaceholders();
   updateCmdPreview();
   showScreen('jobform');
@@ -121,6 +125,14 @@ export function toggleDestFields() {
   document.getElementById('dest-path-field').classList.toggle('hidden', hide);
 }
 
+const BACKUP_DIR_COMMANDS = ['sync', 'move', 'bisync'];
+
+export function toggleCommandOptionFields() {
+  const cmd = document.getElementById('f-cmd').value;
+  document.getElementById('bisync-options-field').classList.toggle('hidden', cmd !== 'bisync');
+  document.getElementById('backup-dir-field').classList.toggle('hidden', !BACKUP_DIR_COMMANDS.includes(cmd));
+}
+
 export function updatePathPlaceholders() {
   const sLocal = isLocalProvider(document.getElementById('f-sprov').value);
   const dLocal = isLocalProvider(document.getElementById('f-dprov').value);
@@ -135,12 +147,21 @@ export function updateCmdPreview() {
   const dprov = document.getElementById('f-dprov').value;
   const dpath = document.getElementById('f-dpath').value;
   const extra = document.getElementById('f-extra').value;
+  const resyncMode = document.getElementById('f-resync-mode').value;
+  const conflictResolve = document.getElementById('f-conflict-resolve').value;
+  const backupDir = document.getElementById('f-backup-dir').value;
 
   const srcRemote = formatRemote(sprov, spath);
   let line = `rclone ${cmd} ${srcRemote}`;
   if (!isOneSided(cmd)) {
     line += ` ${formatRemote(dprov, dpath)}`;
   }
+  if (cmd === 'bisync') {
+    line += ' [--resync]'; // per-run choice, shown at run time
+    if (resyncMode) line += ` --resync-mode ${resyncMode}`;
+    if (conflictResolve) line += ` --conflict-resolve ${conflictResolve}`;
+  }
+  if (backupDir && BACKUP_DIR_COMMANDS.includes(cmd)) line += ` --backup-dir ${backupDir}`;
   if (extra) line += ` ${extra}`;
   document.getElementById('cmd-preview').textContent = line.replace(/\s+/g, ' ').trim();
 }
@@ -156,6 +177,9 @@ export async function saveJob() {
     dest_provider: document.getElementById('f-dprov').value,
     dest_path: document.getElementById('f-dpath').value.trim(),
     extra_args: document.getElementById('f-extra').value.trim(),
+    resync_mode: document.getElementById('f-resync-mode').value,
+    conflict_resolve: document.getElementById('f-conflict-resolve').value,
+    backup_dir: document.getElementById('f-backup-dir').value.trim(),
   };
 
   if (!job.name) { showError('jobform-error', 'Name is required'); return; }
@@ -197,6 +221,9 @@ async function cloneJob(id) {
     dest_provider: job.dest_provider,
     dest_path: job.dest_path,
     extra_args: job.extra_args,
+    resync_mode: job.resync_mode,
+    conflict_resolve: job.conflict_resolve,
+    backup_dir: job.backup_dir,
   };
 
   try {

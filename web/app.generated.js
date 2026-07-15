@@ -1043,7 +1043,7 @@
   }
 
   // web/js/runs.js
-  var DESTRUCTIVE = ["sync", "move"];
+  var DESTRUCTIVE = ["sync", "move", "bisync"];
   function startRunFlow(jobId, dryRun) {
     state.pendingRunJobId = jobId;
     state.pendingRunDryRun = dryRun;
@@ -1057,7 +1057,10 @@
     document.getElementById("run-status-badge").textContent = "preparing…";
     document.getElementById("run-status-badge").className = "rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700";
     document.getElementById("stop-btn").classList.remove("hidden");
-    if (!dryRun && DESTRUCTIVE.includes(job.command)) {
+    const resyncRow = document.getElementById("confirm-resync-row");
+    document.getElementById("confirm-resync").checked = false;
+    resyncRow.classList.toggle("hidden", job.command !== "bisync");
+    if (job.command === "bisync" || !dryRun && DESTRUCTIVE.includes(job.command)) {
       document.getElementById("confirm-cmd").textContent = job.command;
       document.getElementById("confirm-box").classList.remove("hidden");
       showScreen("run");
@@ -1068,9 +1071,13 @@
     }
   }
   async function proceedWithRun() {
+    const resync = !document.getElementById("confirm-resync-row").classList.contains("hidden") && document.getElementById("confirm-resync").checked;
     document.getElementById("confirm-box").classList.add("hidden");
     try {
-      const qs = state.pendingRunDryRun ? "?dryRun=true" : "";
+      const params = [];
+      if (state.pendingRunDryRun) params.push("dryRun=true");
+      if (resync) params.push("resync=true");
+      const qs = params.length ? `?${params.join("&")}` : "";
       const data = await api("POST", `/api/jobs/${state.pendingRunJobId}/run${qs}`);
       if (!data) return;
       state.currentRun = { id: data.runId, jobId: state.pendingRunJobId };
@@ -1177,7 +1184,7 @@
     );
   }
   function cmdColor(cmd) {
-    const colors = { copy: "slate", sync: "amber", move: "rose", check: "sky", lsf: "violet" };
+    const colors = { copy: "slate", sync: "amber", bisync: "orange", move: "rose", check: "sky", lsf: "violet" };
     return colors[cmd] || "slate";
   }
   function lastRunCell(job) {
@@ -1206,6 +1213,9 @@
     document.getElementById("f-spath").value = job ? job.source_path || "" : "";
     document.getElementById("f-dpath").value = job ? job.dest_path || "" : "";
     document.getElementById("f-extra").value = job && job.extra_args && job.extra_args !== "undefined" ? job.extra_args : "";
+    document.getElementById("f-resync-mode").value = job ? job.resync_mode || "" : "";
+    document.getElementById("f-conflict-resolve").value = job ? job.conflict_resolve || "" : "";
+    document.getElementById("f-backup-dir").value = job ? job.backup_dir || "" : "";
     clearError("jobform-error");
     populateProviderSelects();
     if (job) {
@@ -1213,6 +1223,7 @@
       document.getElementById("f-dprov").value = job.dest_provider || "";
     }
     toggleDestFields();
+    toggleCommandOptionFields();
     updatePathPlaceholders();
     updateCmdPreview();
     showScreen("jobform");
@@ -1235,6 +1246,12 @@
     document.getElementById("dest-prov-field").classList.toggle("hidden", hide);
     document.getElementById("dest-path-field").classList.toggle("hidden", hide);
   }
+  var BACKUP_DIR_COMMANDS = ["sync", "move", "bisync"];
+  function toggleCommandOptionFields() {
+    const cmd = document.getElementById("f-cmd").value;
+    document.getElementById("bisync-options-field").classList.toggle("hidden", cmd !== "bisync");
+    document.getElementById("backup-dir-field").classList.toggle("hidden", !BACKUP_DIR_COMMANDS.includes(cmd));
+  }
   function updatePathPlaceholders() {
     const sLocal = isLocalProvider(document.getElementById("f-sprov").value);
     const dLocal = isLocalProvider(document.getElementById("f-dprov").value);
@@ -1248,11 +1265,20 @@
     const dprov = document.getElementById("f-dprov").value;
     const dpath = document.getElementById("f-dpath").value;
     const extra = document.getElementById("f-extra").value;
+    const resyncMode = document.getElementById("f-resync-mode").value;
+    const conflictResolve = document.getElementById("f-conflict-resolve").value;
+    const backupDir = document.getElementById("f-backup-dir").value;
     const srcRemote = formatRemote(sprov, spath);
     let line = `rclone ${cmd} ${srcRemote}`;
     if (!isOneSided(cmd)) {
       line += ` ${formatRemote(dprov, dpath)}`;
     }
+    if (cmd === "bisync") {
+      line += " [--resync]";
+      if (resyncMode) line += ` --resync-mode ${resyncMode}`;
+      if (conflictResolve) line += ` --conflict-resolve ${conflictResolve}`;
+    }
+    if (backupDir && BACKUP_DIR_COMMANDS.includes(cmd)) line += ` --backup-dir ${backupDir}`;
     if (extra) line += ` ${extra}`;
     document.getElementById("cmd-preview").textContent = line.replace(/\s+/g, " ").trim();
   }
@@ -1266,7 +1292,10 @@
       source_path: document.getElementById("f-spath").value.trim(),
       dest_provider: document.getElementById("f-dprov").value,
       dest_path: document.getElementById("f-dpath").value.trim(),
-      extra_args: document.getElementById("f-extra").value.trim()
+      extra_args: document.getElementById("f-extra").value.trim(),
+      resync_mode: document.getElementById("f-resync-mode").value,
+      conflict_resolve: document.getElementById("f-conflict-resolve").value,
+      backup_dir: document.getElementById("f-backup-dir").value.trim()
     };
     if (!job.name) {
       showError("jobform-error", "Name is required");
@@ -1303,7 +1332,10 @@
       source_path: job.source_path,
       dest_provider: job.dest_provider,
       dest_path: job.dest_path,
-      extra_args: job.extra_args
+      extra_args: job.extra_args,
+      resync_mode: job.resync_mode,
+      conflict_resolve: job.conflict_resolve,
+      backup_dir: job.backup_dir
     };
     try {
       await api("POST", "/api/jobs", clone);
@@ -2228,12 +2260,13 @@
         if (e.key === "Enter") doUnlock();
       });
     });
-    ["f-cmd", "f-sprov", "f-spath", "f-dprov", "f-dpath", "f-extra"].forEach((id) => {
+    ["f-cmd", "f-sprov", "f-spath", "f-dprov", "f-dpath", "f-extra", "f-resync-mode", "f-conflict-resolve", "f-backup-dir"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.addEventListener("input", updateCmdPreview);
       if (el) el.addEventListener("change", updateCmdPreview);
     });
     document.getElementById("f-cmd").addEventListener("change", toggleDestFields);
+    document.getElementById("f-cmd").addEventListener("change", toggleCommandOptionFields);
     ["f-sprov", "f-dprov"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.addEventListener("change", updatePathPlaceholders);
