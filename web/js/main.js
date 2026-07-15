@@ -9,7 +9,7 @@
 import { showScreen } from './screens.js';
 import { checkStatus, doUnlock, doLock } from './session.js';
 import {
-  saveJob, openJobForm, toggleDestFields, updateCmdPreview, updatePathPlaceholders, switchJobTab,
+  saveJob, openJobForm, toggleDestFields, toggleCommandOptionFields, updateCmdPreview, updatePathPlaceholders, switchJobTab,
 } from './jobs.js';
 import {
   saveProvider, openProvForm, addCustomKey, renderProviderFields, switchProvTab,
@@ -50,12 +50,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Job form live preview
-  ['f-cmd', 'f-sprov', 'f-spath', 'f-dprov', 'f-dpath', 'f-extra'].forEach(id => {
+  ['f-cmd', 'f-sprov', 'f-spath', 'f-dprov', 'f-dpath', 'f-extra', 'f-resync-mode', 'f-conflict-resolve', 'f-backup-dir'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', updateCmdPreview);
     if (el) el.addEventListener('change', updateCmdPreview);
   });
   document.getElementById('f-cmd').addEventListener('change', toggleDestFields);
+  document.getElementById('f-cmd').addEventListener('change', toggleCommandOptionFields);
   ['f-sprov', 'f-dprov'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', updatePathPlaceholders);

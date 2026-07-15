@@ -41,9 +41,20 @@ type Job struct {
 	DestProvider   string `yaml:"dest_provider,omitempty" json:"dest_provider,omitempty"`
 	DestPath       string `yaml:"dest_path,omitempty" json:"dest_path,omitempty"`
 	Command        string `yaml:"command,omitempty" json:"command,omitempty"`
-	ExtraArgs      string     `yaml:"extra_args,omitempty" json:"extra_args,omitempty"`
-	LastRunAt      *time.Time `yaml:"last_run_at,omitempty" json:"last_run_at,omitempty"`
-	LastRunStatus  string     `yaml:"last_run_status,omitempty" json:"last_run_status,omitempty"`
+	ExtraArgs      string `yaml:"extra_args,omitempty" json:"extra_args,omitempty"`
+	// ResyncMode and ConflictResolve only apply to the "bisync" command.
+	// ResyncMode picks the winning side ("path1"/"path2"/"newer"/"older"/
+	// "larger"/"smaller") when establishing the initial baseline (--resync).
+	// ConflictResolve picks the winning side for the same set of values when
+	// the same file changed on both sides since the last run; left blank,
+	// bisync keeps both and renames them instead of picking a winner.
+	ResyncMode      string     `yaml:"resync_mode,omitempty" json:"resync_mode,omitempty"`
+	ConflictResolve string     `yaml:"conflict_resolve,omitempty" json:"conflict_resolve,omitempty"`
+	// BackupDir applies to sync/move/bisync: instead of deleting or
+	// overwriting a file, rclone moves the old version here first.
+	BackupDir     string     `yaml:"backup_dir,omitempty" json:"backup_dir,omitempty"`
+	LastRunAt     *time.Time `yaml:"last_run_at,omitempty" json:"last_run_at,omitempty"`
+	LastRunStatus string     `yaml:"last_run_status,omitempty" json:"last_run_status,omitempty"`
 }
 
 // DisplayName returns a human-readable label for the job.

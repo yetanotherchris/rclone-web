@@ -349,7 +349,7 @@ func headlessRunJob(cfg *config.RcloneConfig, src *remotes.EnvVarSource, rcloneP
 		return fmt.Errorf("job %q not found", jobID)
 	}
 
-	argv, err := remotes.AssembleArgv(src, cfg, job, false)
+	argv, err := remotes.AssembleArgv(src, cfg, job, false, false)
 	if err != nil {
 		return fmt.Errorf("assemble argv: %w", err)
 	}
@@ -402,7 +402,7 @@ func headlessRunQueue(cfg *config.RcloneConfig, src *remotes.EnvVarSource, rclon
 			continue
 		}
 
-		argv, err := remotes.AssembleArgv(src, cfg, job, false)
+		argv, err := remotes.AssembleArgv(src, cfg, job, false, false)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: assemble argv for job %q: %v\n", jid, err)
 			if queue.OnFailure == "stop" {

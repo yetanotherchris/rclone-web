@@ -445,6 +445,7 @@ func (s *Server) handleDeleteJob(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleRunJob(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	dryRun := r.URL.Query().Get("dryRun") == "true" || r.URL.Query().Get("dryRun") == "1"
+	resync := r.URL.Query().Get("resync") == "true" || r.URL.Query().Get("resync") == "1"
 
 	s.mu.RLock()
 	cfg := s.rcCfg
@@ -468,7 +469,7 @@ func (s *Server) handleRunJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	argv, err := remotes.AssembleArgv(s.src, cfg, job, dryRun)
+	argv, err := remotes.AssembleArgv(s.src, cfg, job, dryRun, resync)
 	if err != nil {
 		jsonErr(w, "assemble argv: "+err.Error(), http.StatusBadRequest)
 		return
@@ -893,7 +894,7 @@ func (s *Server) handleRunQueue(w http.ResponseWriter, r *http.Request) {
 			return nil, fmt.Errorf("job %q not found", jobID)
 		}
 
-		argv, err := remotes.AssembleArgv(s.src, cfgSnapshot, job, false)
+		argv, err := remotes.AssembleArgv(s.src, cfgSnapshot, job, false, false)
 		if err != nil {
 			return nil, fmt.Errorf("assemble argv: %w", err)
 		}
