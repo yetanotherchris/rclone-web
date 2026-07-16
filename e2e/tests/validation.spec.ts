@@ -49,7 +49,8 @@ test('dashboard dry-run button runs the job in dry-run mode', async ({ page }) =
   await expect(page.getByText('E2E Copy', { exact: true })).toBeVisible({ timeout: 10_000 });
 
   const copyRow = page.locator('#dashboard-tbody tr').filter({ hasText: 'E2E Copy' }).first();
-  await copyRow.locator('.run-btn[data-dry="true"]').click();
+  await copyRow.locator('.kebab-btn').click();
+  await page.locator('#job-kebab-menu .kebab-dryrun-item').click();
 
   // Title must include "(dry-run)" to confirm the correct mode was triggered.
   await expect(page.locator('#run-title')).toContainText('dry-run', { timeout: 5_000 });
