@@ -176,6 +176,24 @@ func (m *Manager) Get(id string) (*Run, bool) {
 	return r, ok
 }
 
+// IsRunning reports whether jobID has a run currently in progress.
+func (m *Manager) IsRunning(jobID string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, r := range m.runs {
+		if r.JobID != jobID {
+			continue
+		}
+		r.mu.Lock()
+		running := r.Status == StatusRunning
+		r.mu.Unlock()
+		if running {
+			return true
+		}
+	}
+	return false
+}
+
 // Stop cancels a running job.
 func (m *Manager) Stop(id string) error {
 	m.mu.Lock()

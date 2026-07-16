@@ -2,6 +2,7 @@
 'use strict';
 
 import { state } from './state.js';
+import { api } from './api.js';
 import { esc, runStatusBadge } from './util.js';
 import { formatRoute } from './remotes.js';
 import { startRunFlow } from './runs.js';
@@ -35,6 +36,10 @@ export function renderDashboard() {
         statusBadge = '<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">never run</span>';
       }
 
+      const watchBtn = job.isWatching
+        ? `<button class="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600 watch-btn" data-job-id="${job.id}" data-watching="true">⏹ Stop watch</button>`
+        : `<button class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 watch-btn" data-job-id="${job.id}" data-watching="false">Watch</button>`;
+
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="px-5 py-4 font-medium">${esc(job.name)}</td>
@@ -43,12 +48,16 @@ export function renderDashboard() {
         <td class="px-5 py-4 text-right space-x-2">
           <button class="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 run-btn" data-job-id="${job.id}" data-dry="false">Run</button>
           <button class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 run-btn" data-job-id="${job.id}" data-dry="true">Dry-run</button>
+          ${watchBtn}
         </td>`;
       tbody.appendChild(tr);
     });
 
     tbody.querySelectorAll('.run-btn').forEach(btn => {
       btn.addEventListener('click', () => startRunFlow(btn.dataset.jobId, btn.dataset.dry === 'true'));
+    });
+    tbody.querySelectorAll('.watch-btn').forEach(btn => {
+      btn.addEventListener('click', () => toggleWatch(btn.dataset.jobId, btn.dataset.watching === 'true'));
     });
   }
 
@@ -96,4 +105,14 @@ export function renderDashboard() {
   qTbody.querySelectorAll('.dash-queue-run-btn:not([disabled])').forEach(btn =>
     btn.addEventListener('click', () => startQueueRun(btn.dataset.queueId))
   );
+}
+
+async function toggleWatch(jobId, isWatching) {
+  try {
+    await api('POST', `/api/jobs/${jobId}/watch/${isWatching ? 'stop' : 'start'}`);
+    state.jobs = await api('GET', '/api/jobs') || state.jobs;
+    renderDashboard();
+  } catch (err) {
+    alert('Watch toggle failed: ' + err.message);
+  }
 }
