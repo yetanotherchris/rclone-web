@@ -2232,6 +2232,7 @@
       if (data.locked) {
         showLock();
       } else {
+        state.csrfToken = data.csrfToken;
         await loadInitialData();
         showApp();
         showScreen("dashboard");
