@@ -31,7 +31,8 @@ test('dry-run shows "(dry-run)" in the run title and completes with success', as
   await page.goto(url);
   await expect(page.locator('#app')).toBeVisible({ timeout: 10_000 });
 
-  await page.locator(`.run-btn[data-job-id="${j.id}"][data-dry="true"]`).click();
+  await page.locator(`.kebab-btn[data-job-id="${j.id}"]`).click();
+  await page.locator('#job-kebab-menu .kebab-dryrun-item').click();
 
   await expect(page.locator('#run-title')).toContainText('dry-run', { timeout: 5_000 });
   await expect(page.locator('#run-status-badge')).toHaveText('success · exit 0', { timeout: 30_000 });

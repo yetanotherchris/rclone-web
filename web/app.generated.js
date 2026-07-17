@@ -968,6 +968,30 @@
     editingQueueId: null
   };
 
+  // web/js/api.js
+  async function api(method, path, body) {
+    const opts = {
+      method,
+      headers: { "Content-Type": "application/json" }
+    };
+    if (state.csrfToken && method !== "GET") {
+      opts.headers["X-CSRF-Token"] = state.csrfToken;
+    }
+    if (body !== void 0) {
+      opts.body = JSON.stringify(body);
+    }
+    const res = await fetch(path, opts);
+    if (res.status === 401) {
+      showLock();
+      return null;
+    }
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(data && data.error || `HTTP ${res.status}`);
+    }
+    return data;
+  }
+
   // web/js/util.js
   function esc(str) {
     return String(str ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -1016,30 +1040,6 @@
     if (isOneSided(job.command)) return src;
     const dst = formatRemote(job.dest_provider, job.dest_path);
     return `${src} → ${dst}`;
-  }
-
-  // web/js/api.js
-  async function api(method, path, body) {
-    const opts = {
-      method,
-      headers: { "Content-Type": "application/json" }
-    };
-    if (state.csrfToken && method !== "GET") {
-      opts.headers["X-CSRF-Token"] = state.csrfToken;
-    }
-    if (body !== void 0) {
-      opts.body = JSON.stringify(body);
-    }
-    const res = await fetch(path, opts);
-    if (res.status === 401) {
-      showLock();
-      return null;
-    }
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      throw new Error(data && data.error || `HTTP ${res.status}`);
-    }
-    return data;
   }
 
   // web/js/runs.js
@@ -1736,19 +1736,31 @@
         } else {
           statusBadge = '<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">never run</span>';
         }
+        const watchingBadge = job.isWatching ? `<span class="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-[10px] font-medium text-amber-700"><span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>watching</span>` : "";
         const tr = document.createElement("tr");
         tr.innerHTML = `
-        <td class="px-5 py-4 font-medium">${esc(job.name)}</td>
+        <td class="px-5 py-4 font-medium">${esc(job.name)}${watchingBadge}</td>
         <td class="px-5 py-4 font-mono text-xs text-slate-500">${esc(route)}</td>
         <td class="px-5 py-4">${statusBadge} <span class="text-xs text-slate-400 ml-1">${job.last_run_at ? new Date(job.last_run_at).toLocaleDateString(void 0, { month: "short", day: "numeric" }) : ""}</span></td>
         <td class="px-5 py-4 text-right space-x-2">
           <button class="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 run-btn" data-job-id="${job.id}" data-dry="false">Run</button>
-          <button class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 run-btn" data-job-id="${job.id}" data-dry="true">Dry-run</button>
+          <button class="kebab-btn rounded-lg border border-slate-300 px-2 py-1.5 text-slate-500 hover:bg-slate-50" data-job-id="${job.id}" aria-label="More actions">⋮</button>
         </td>`;
         tbody.appendChild(tr);
       });
       tbody.querySelectorAll(".run-btn").forEach((btn) => {
         btn.addEventListener("click", () => startRunFlow(btn.dataset.jobId, btn.dataset.dry === "true"));
+      });
+      tbody.querySelectorAll(".kebab-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const job = state.jobs.find((j) => j.id === btn.dataset.jobId);
+          if (!job) return;
+          const menu = ensureKebabMenu();
+          const wasOpenForThisJob = !menu.classList.contains("hidden") && menu.dataset.jobId === job.id;
+          closeKebabMenu();
+          if (!wasOpenForThisJob) openKebabMenu(btn, job);
+        });
       });
     }
     const qSection = document.getElementById("dashboard-queues-section");
@@ -1792,6 +1804,66 @@
     qTbody.querySelectorAll(".dash-queue-run-btn:not([disabled])").forEach(
       (btn) => btn.addEventListener("click", () => startQueueRun(btn.dataset.queueId))
     );
+  }
+  async function toggleWatch(jobId, isWatching) {
+    try {
+      await api("POST", `/api/jobs/${jobId}/watch/${isWatching ? "stop" : "start"}`);
+      state.jobs = await api("GET", "/api/jobs") || state.jobs;
+      renderDashboard();
+    } catch (err) {
+      alert("Watch toggle failed: " + err.message);
+    }
+  }
+  var kebabMenuEl = null;
+  function ensureKebabMenu() {
+    if (kebabMenuEl) return kebabMenuEl;
+    kebabMenuEl = document.createElement("div");
+    kebabMenuEl.id = "job-kebab-menu";
+    kebabMenuEl.className = "fixed z-50 hidden w-40 rounded-lg border border-slate-200 bg-white py-1 text-sm shadow-lg";
+    kebabMenuEl.innerHTML = `
+    <button class="kebab-dryrun-item block w-full px-3 py-2 text-left text-slate-700 hover:bg-slate-50">Dry-run</button>
+    <button class="kebab-watch-item block w-full px-3 py-2 text-left text-slate-700 hover:bg-slate-50"></button>
+  `;
+    document.body.appendChild(kebabMenuEl);
+    kebabMenuEl.querySelector(".kebab-dryrun-item").addEventListener("click", () => {
+      const jobId = kebabMenuEl.dataset.jobId;
+      closeKebabMenu();
+      startRunFlow(jobId, true);
+    });
+    kebabMenuEl.querySelector(".kebab-watch-item").addEventListener("click", () => {
+      const jobId = kebabMenuEl.dataset.jobId;
+      const watching = kebabMenuEl.dataset.watching === "true";
+      closeKebabMenu();
+      toggleWatch(jobId, watching);
+    });
+    document.addEventListener("click", (e) => {
+      if (kebabMenuEl.classList.contains("hidden")) return;
+      if (e.target.closest("#job-kebab-menu") || e.target.closest(".kebab-btn")) return;
+      closeKebabMenu();
+    });
+    window.addEventListener("resize", closeKebabMenu);
+    return kebabMenuEl;
+  }
+  function closeKebabMenu() {
+    if (kebabMenuEl) kebabMenuEl.classList.add("hidden");
+  }
+  function openKebabMenu(btn, job) {
+    const menu = ensureKebabMenu();
+    menu.dataset.jobId = job.id;
+    menu.dataset.watching = job.isWatching ? "true" : "false";
+    menu.querySelector(".kebab-watch-item").textContent = job.isWatching ? "⏹ Stop watch" : "Watch";
+    menu.classList.remove("hidden");
+    const rect = btn.getBoundingClientRect();
+    const menuWidth = menu.offsetWidth || 160;
+    const menuHeight = menu.offsetHeight || 80;
+    const left = Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8));
+    let top = rect.bottom + 4;
+    if (top + menuHeight > window.innerHeight - 8) {
+      top = rect.top - menuHeight - 4;
+    }
+    top = Math.max(8, top);
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
   }
 
   // web/js/providers.js

@@ -28,6 +28,7 @@ type Server struct {
 	sessions   *session.Store
 	runs       *runner.Manager
 	queueRuns  *runner.QueueManager
+	watches    *runner.WatchManager
 	src        *remotes.EnvVarSource
 	assemblePassphrase func(prefix string) (string, error)
 
@@ -58,6 +59,7 @@ func New(
 		src:                &remotes.EnvVarSource{},
 		runs:               mgr,
 		queueRuns:          runner.NewQueueManager(mgr),
+		watches:            runner.NewWatchManager(),
 		assemblePassphrase: assemblePassphrase,
 		bindAddr:           cfg.BindAddr,
 		port:               cfg.Port,
@@ -76,6 +78,7 @@ func New(
 }
 
 func (s *Server) lock() {
+	s.watches.StopAll()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	// zero passphrase
@@ -184,6 +187,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/jobs/{id}", s.csrf(s.handleUpdateJob))
 	mux.HandleFunc("DELETE /api/jobs/{id}", s.csrf(s.handleDeleteJob))
 	mux.HandleFunc("POST /api/jobs/{id}/run", s.csrf(s.handleRunJob))
+	mux.HandleFunc("POST /api/jobs/{id}/watch/start", s.csrf(s.handleStartWatch))
+	mux.HandleFunc("POST /api/jobs/{id}/watch/stop", s.csrf(s.handleStopWatch))
 
 	mux.HandleFunc("GET /api/runs/{id}", s.auth(s.handleGetRun))
 	mux.HandleFunc("GET /api/runs/{id}/log", s.auth(s.handleRunLog))
@@ -327,11 +332,12 @@ func (s *Server) handleListJobs(w http.ResponseWriter, r *http.Request) {
 	// Attach last run status for dashboard
 	type jobWithStatus struct {
 		config.Job
-		LastRun   *runSummary `json:"lastRun,omitempty"`
+		LastRun    *runSummary `json:"lastRun,omitempty"`
+		IsWatching bool        `json:"isWatching"`
 	}
 	jobs := make([]jobWithStatus, 0, len(cfg.Rclone.Jobs))
 	for _, j := range cfg.Rclone.Jobs {
-		jws := jobWithStatus{Job: j}
+		jws := jobWithStatus{Job: j, IsWatching: s.watches.IsWatching(j.ID)}
 		// find most recent run for this job
 		for _, run := range s.runs.ListRecent() {
 			if run.JobID == j.ID {
@@ -435,6 +441,7 @@ func (s *Server) handleDeleteJob(w http.ResponseWriter, r *http.Request) {
 				jsonErr(w, "save error: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
+			s.watches.Stop(id)
 			jsonOK(w, map[string]string{"deleted": id})
 			return
 		}
@@ -469,10 +476,21 @@ func (s *Server) handleRunJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	run, err := s.startJob(cfg, job, dryRun, resync)
+	if err != nil {
+		jsonErr(w, "start run: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	jsonOK(w, map[string]string{"runId": run.ID})
+}
+
+// startJob assembles argv for job and launches it via the run manager.
+// Shared by the manual run endpoint and the watch ticker.
+func (s *Server) startJob(cfg *config.RcloneConfig, job *config.Job, dryRun, resync bool) (*runner.Run, error) {
 	argv, err := remotes.AssembleArgv(s.src, cfg, job, dryRun, resync)
 	if err != nil {
-		jsonErr(w, "assemble argv: "+err.Error(), http.StatusBadRequest)
-		return
+		return nil, fmt.Errorf("assemble argv: %w", err)
 	}
 
 	cmdline := remotes.RedactedCmdline(s.cfg.RclonePath, argv)
@@ -504,12 +522,79 @@ func (s *Server) handleRunJob(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 	if err != nil {
-		jsonErr(w, "start run: "+err.Error(), http.StatusInternalServerError)
-		return
+		return nil, err
 	}
 	s.sessions.SetRunActive(true)
+	return run, nil
+}
 
-	jsonOK(w, map[string]string{"runId": run.ID})
+// ---- Watch mode ----
+//
+// Watch mode re-runs a job on a fixed timer (runner.WatchInterval) instead of
+// waiting for a manual trigger. rclone's copy/sync commands already diff
+// before transferring, so periodic re-runs are enough — no filesystem event
+// watching is needed. Watch state is in-memory only: it stops on lock/restart.
+
+func (s *Server) handleStartWatch(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	s.mu.RLock()
+	cfg := s.rcCfg
+	s.mu.RUnlock()
+	if cfg == nil {
+		jsonErr(w, "locked", http.StatusUnauthorized)
+		return
+	}
+
+	found := false
+	for _, j := range cfg.Rclone.Jobs {
+		if j.ID == id {
+			found = true
+			break
+		}
+	}
+	if !found {
+		jsonErr(w, "job not found", http.StatusNotFound)
+		return
+	}
+
+	started := s.watches.Start(id, func() { s.watchTick(id) })
+	if !started {
+		jsonErr(w, "already watching", http.StatusConflict)
+		return
+	}
+	jsonOK(w, map[string]string{"status": "watching"})
+}
+
+func (s *Server) handleStopWatch(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	s.watches.Stop(id)
+	jsonOK(w, map[string]string{"status": "stopped"})
+}
+
+// watchTick runs the watched job, skipping the tick if it's already running,
+// the server is locked, or the job was deleted since the watch started.
+func (s *Server) watchTick(jobID string) {
+	if s.runs.IsRunning(jobID) {
+		return
+	}
+	s.mu.RLock()
+	cfg := s.rcCfg
+	s.mu.RUnlock()
+	if cfg == nil {
+		return
+	}
+	var job *config.Job
+	for i := range cfg.Rclone.Jobs {
+		if cfg.Rclone.Jobs[i].ID == jobID {
+			job = &cfg.Rclone.Jobs[i]
+			break
+		}
+	}
+	if job == nil {
+		s.watches.Stop(jobID)
+		return
+	}
+	_, _ = s.startJob(cfg, job, false, false)
 }
 
 // ---- Runs ----
