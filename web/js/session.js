@@ -17,6 +17,7 @@ export async function checkStatus() {
       showLock();
     } else {
       // We have a valid session from a cookie; fetch initial data
+      state.csrfToken = data.csrfToken;
       await loadInitialData();
       showApp();
       showScreen('dashboard');

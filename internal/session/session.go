@@ -24,7 +24,7 @@ type Store struct {
 	mu           sync.RWMutex
 	session      *Session
 	lastActivity time.Time
-	runActive    bool // true while a job subprocess is running (pauses idle timer)
+	activeRuns   int // count of in-flight job/queue runs; pauses idle timer while > 0
 
 	idleTimeout time.Duration
 	onLock      func() // called when the store auto-locks
@@ -90,12 +90,21 @@ func (s *Store) Touch() {
 	s.lastActivity = time.Now()
 }
 
-// SetRunActive pauses or resumes the idle timer.
+// SetRunActive increments or decrements the active-run counter, pausing the
+// idle timer while at least one run is active. Overlapping runs (e.g. two
+// watched jobs mid-run at once) are tracked independently, so the timer only
+// resumes once the last one finishes.
 func (s *Store) SetRunActive(active bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.runActive = active
-	if !active {
+	if active {
+		s.activeRuns++
+		return
+	}
+	if s.activeRuns > 0 {
+		s.activeRuns--
+	}
+	if s.activeRuns == 0 {
 		// Resume the idle timer from now so a just-completed run doesn't
 		// immediately trigger a lock.
 		s.lastActivity = time.Now()
@@ -146,7 +155,7 @@ func (s *Store) StartIdleWatcher() {
 		defer tick.Stop()
 		for range tick.C {
 			s.mu.RLock()
-			if s.session == nil || s.runActive {
+			if s.session == nil || s.activeRuns > 0 {
 				s.mu.RUnlock()
 				continue
 			}

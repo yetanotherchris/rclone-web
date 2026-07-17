@@ -310,13 +310,17 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	_, ok := s.sessions.Validate(r)
+	csrfToken, ok := s.sessions.Validate(r)
 	remaining := s.sessions.TimeUntilLock()
-	jsonOK(w, map[string]interface{}{
+	resp := map[string]interface{}{
 		"locked":          !ok,
 		"idleSecondsLeft": int(remaining.Seconds()),
 		"shortLen":        s.shortLen,
-	})
+	}
+	if ok {
+		resp["csrfToken"] = csrfToken
+	}
+	jsonOK(w, resp)
 }
 
 // ---- Jobs ----
