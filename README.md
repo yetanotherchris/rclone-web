@@ -100,7 +100,7 @@ After a configurable period of inactivity (default 300s) the server locks and ze
 
 ## Building from Source
 
-Requires Go 1.25+.
+Requires Go 1.27+.
 
 ```bash
 git clone https://github.com/yetanotherchris/rclone-web

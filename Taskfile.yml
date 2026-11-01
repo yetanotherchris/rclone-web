@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  TAILWIND_VERSION: "3.4.17"
+  TAILWIND_VERSION: "4.3.3"
   TAILWIND_BIN: ".tools/tailwindcss"
 
 tasks:
