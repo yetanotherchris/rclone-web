@@ -1,3 +1,14 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+
+@source "./**/*.{html,js}";
+@source inline("bg-slate-100 text-slate-600 bg-amber-100 text-amber-700 bg-orange-100 text-orange-700 bg-rose-100 text-rose-700 bg-sky-100 text-sky-700 bg-violet-100 text-violet-700");
+
+@theme {
+  --color-brand-50: #eef6ff;
+  --color-brand-100: #d9ecff;
+  --color-brand-500: #2563eb;
+  --color-brand-600: #1d4ed8;
+  --color-brand-700: #1e40af;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
